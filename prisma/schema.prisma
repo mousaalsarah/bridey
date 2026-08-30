@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Artist {
+  id                 String   @id @default(cuid())
+  name               String
+  phone              String   @unique
+  passwordHash       String
+  slug               String   @unique
+  bio                String   @default("")
+  specialty          String   @default("makeup")
+  neighborhood       String   @default("")
+  city               String   @default("Benghazi")
+  avatarUrl          String   @default("")
+  coverUrl           String   @default("")
+  tagline            String   @default("")
+  snapchat           String   @default("")
+  instagram          String   @default("")
+  whatsapp           String   @default("")
+  pageStyle          String   @default("ivory")
+  accent             String   @default("gold")
+  coverLayout        String   @default("wide")
+  ctaLabel           String   @default("")
+  bookingHorizonDays Int      @default(21)
+  minNoticeHours     Int      @default(2)
+  showHoursOnPage    Boolean  @default(true)
+  onboardingComplete Boolean  @default(false)
+  isDemo             Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  services   Service[]
+  portfolio  PortfolioImage[]
+  hours      WeeklyHour[]
+  blocked    BlockedDate[]
+  bookings     Booking[]
+  fees         PlatformFee[]
+  subscription ArtistSubscription?
+  invoices     SubscriptionInvoice[]
+  payments     SubscriptionPayment[]
+  notices      ArtistNotice[]
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  artistId    String
+  nameAr      String
+  nameEn      String
+  description String   @default("")
+  kind        String   @default("bridal")
+  durationMin Int
+  priceLyd    Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  artist   Artist        @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+  items    BookingItem[]
+}
+
+model PortfolioImage {
+  id        String   @id @default(cuid())
+  artistId  String
+  url       String
+  caption   String   @default("")
+  createdAt DateTime @default(now())
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+}
+
+model WeeklyHour {
+  id        String @id @default(cuid())
+  artistId  String
+  dayOfWeek Int
+  startMin  Int
+  endMin    Int
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([artistId, dayOfWeek])
+}
+
+model BlockedDate {
+  id       String @id @default(cuid())
+  artistId String
+  date     String
+  reason   String @default("")
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([artistId, date])
+}
+
+model Booking {
+  id             String    @id @default(cuid())
+  artistId       String
+  serviceId      String
+  trackCode      String?   @unique
+  origin         String    @default("public")
+  source         String    @default("bridey")
+  brideName      String
+  bridePhone     String
+  notes          String    @default("")
+  artistNotes    String    @default("")
+  date           String
+  startMin       Int
+  endMin         Int
+  status         String    @default("PENDING")
+  platformFeeLyd Int       @default(0)
+  feeStatus      String    @default("NONE")
+  confirmedAt    DateTime?
+  cancelledAt    DateTime?
+  expiresAt      DateTime?
+  requestId      String?   @unique
+  createdAt      DateTime  @default(now())
+
+  artist  Artist        @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  service Service       @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  items   BookingItem[]
+  fee     PlatformFee?
+  holds   SlotHold[]
+
+  @@index([artistId, date, status])
+}
+
+model SlotHold {
+  id        String @id @default(cuid())
+  artistId  String
+  date      String
+  startMin  Int
+  bookingId String
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([artistId, date, startMin])
+  @@index([bookingId])
+}
+
+model PlatformFee {
+  id        String    @id @default(cuid())
+  artistId  String
+  bookingId String    @unique
+  invoiceId String?
+  amountLyd Int
+  status    String    @default("UNPAID")
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+
+  artist  Artist               @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  booking Booking              @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  invoice SubscriptionInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+}
+
+model BookingItem {
+  id          String @id @default(cuid())
+  bookingId   String
+  serviceId   String
+  nameAr      String
+  nameEn      String
+  durationMin Int
+  priceLyd    Int
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model SubscriptionPlan {
+  id              String   @id @default(cuid())
+  name            String
+  nameAr          String
+  priceLyd        Int
+  currency        String   @default("LYD")
+  billingInterval String   @default("monthly")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions ArtistSubscription[]
+}
+
+model ArtistSubscription {
+  id                 String   @id @default(cuid())
+  artistId           String   @unique
+  planId             String?
+  status             String   @default("ACTIVE")
+  newBookingsPaused  Boolean  @default(false)
+  manualSuspend      Boolean  @default(false)
+  startDate          String
+  currentPeriodStart String
+  currentPeriodEnd   String
+  nextPaymentDueDate String
+  gracePeriodEndDate String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  artist   Artist                 @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  plan     SubscriptionPlan?      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  invoices SubscriptionInvoice[]
+  payments SubscriptionPayment[]
+
+  @@index([status])
+  @@index([nextPaymentDueDate])
+}
+
+model SubscriptionInvoice {
+  id             String   @id @default(cuid())
+  number         String   @unique
+  reference      String   @unique
+  artistId       String
+  subscriptionId String
+  planId         String   @default("")
+  periodStart    String
+  periodEnd      String
+  amountLyd      Int
+  currency       String   @default("LYD")
+  dueDate        String
+  status         String   @default("UNPAID")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  artist       Artist                 @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  subscription ArtistSubscription     @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  payments     SubscriptionPayment[]
+  fees         PlatformFee[]
+
+  @@index([subscriptionId, periodStart])
+  @@index([artistId, status])
+  @@index([status, dueDate])
+}
+
+model SubscriptionPayment {
+  id              String    @id @default(cuid())
+  artistId        String
+  subscriptionId  String
+  invoiceId       String
+  amountLyd       Int
+  currency        String    @default("LYD")
+  method          String    @default("BANK_TRANSFER")
+  status          String    @default("PENDING")
+  reference       String    @default("")
+  receiptUrl      String    @default("")
+  note            String    @default("")
+  paidOn          String    @default("")
+  submittedAt     DateTime  @default(now())
+  reviewedAt      DateTime?
+  reviewedBy      String    @default("")
+  rejectionReason String    @default("")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  artist       Artist             @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  subscription ArtistSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  invoice      SubscriptionInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([artistId])
+  @@index([status])
+  @@index([invoiceId])
+}
+
+model PaymentSettings {
+  id                String   @id @default("default")
+  bankName          String   @default("")
+  accountName       String   @default("")
+  accountNumber     String   @default("")
+  instructions      String   @default("")
+  supportedMethods  String   @default("BANK_TRANSFER,E_PAYMENT,CASH")
+  reminderDays      Int      @default(7)
+  updatedAt         DateTime @updatedAt
+}
+
+model ArtistNotice {
+  id        String   @id @default(cuid())
+  artistId  String
+  kind      String
+  bodyAr    String
+  bodyEn    String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@index([artistId, read])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorType  String
+  actorId    String
+  action     String
+  artistId   String   @default("")
+  paymentId  String   @default("")
+  invoiceId  String   @default("")
+  reason     String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([artistId])
+  @@index([action])
+}
+
+model NumberSequence {
+  key   String @id
+  value Int    @default(0)
+}

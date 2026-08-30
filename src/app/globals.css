@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-ivory: #f6efe6;
+  --color-cream: #fbf6ef;
+  --color-champagne: #d4b483;
+  --color-gold: #c4a062;
+  --color-blush: #e4b8b4;
+  --color-rose: #f3e4df;
+  --color-espresso: #2b1b14;
+  --color-ink: #3d2a22;
+  --font-display: var(--font-playfair);
+  --font-arabic: var(--font-ibm);
+  --font-sans: var(--font-dm);
+  --shadow-soft: 0 18px 50px -24px rgb(43 27 20 / 0.28);
+  --shadow-gold: 0 8px 24px -10px rgb(196 160 98 / 0.55);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-ivory);
+  color: var(--color-espresso);
+  font-family: var(--font-arabic), var(--font-sans), sans-serif;
+}
+
+[lang="en"] body {
+  font-family: var(--font-sans), var(--font-arabic), sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), var(--font-arabic), serif;
+}
+
+.shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+.shadow-gold {
+  box-shadow: var(--shadow-gold);
+}
+
+.bridal-bg {
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(228, 184, 180, 0.35), transparent 55%),
+    radial-gradient(900px 420px at 100% 0%, rgba(212, 180, 131, 0.28), transparent 50%),
+    linear-gradient(180deg, #fbf6ef 0%, #f6efe6 40%, #f3e4df 100%);
+}
+
+.ornament {
+  background-image:
+    linear-gradient(90deg, transparent, #c4a062, transparent);
+  height: 1px;
+}
+
+.tile {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.2)),
+    repeating-linear-gradient(
+      135deg,
+      rgba(196, 160, 98, 0.07) 0 8px,
+      transparent 8px 16px
+    );
+}
+
+.studio-page {
+  --studio-accent: var(--color-gold);
+  --studio-bg: var(--color-ivory);
+  --studio-fg: var(--color-espresso);
+  --studio-muted: rgb(43 27 20 / 0.62);
+  --studio-card: rgb(255 255 255 / 0.78);
+  --studio-line: rgb(212 180 131 / 0.35);
+  background: var(--studio-bg);
+  color: var(--studio-fg);
+}
+
+.studio-page[data-style="ink"] {
+  --studio-bg: #140f0d;
+  --studio-fg: #f6efe6;
+  --studio-muted: rgb(246 239 230 / 0.68);
+  --studio-card: rgb(255 255 255 / 0.06);
+  --studio-line: rgb(212 180 131 / 0.22);
+}
+
+.studio-page[data-style="rose"] {
+  --studio-bg: #f7e8e4;
+  --studio-fg: #3a201c;
+  --studio-muted: rgb(58 32 28 / 0.64);
+  --studio-card: rgb(255 255 255 / 0.62);
+}
+
+.studio-page[data-accent="blush"] {
+  --studio-accent: var(--color-blush);
+}
+
+.studio-page[data-accent="champagne"] {
+  --studio-accent: var(--color-champagne);
+}
+
+.studio-muted {
+  color: var(--studio-muted);
+}
+
+.studio-accent-text {
+  color: var(--studio-accent);
+}
+
+.studio-card {
+  border: 1px solid var(--studio-line);
+  background: var(--studio-card);
+  border-radius: 1.5rem;
+}
+
+.studio-chip {
+  border: 1px solid var(--studio-line);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  color: var(--studio-muted);
+}
+
+.studio-cta {
+  background: var(--studio-accent) !important;
+  color: #2b1b14 !important;
+}
+
+@keyframes bridey-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(196 160 98 / 0.55);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 8px rgb(196 160 98 / 0);
+  }
+}
+
+.alert-pulse {
+  animation: bridey-pulse 1.4s ease-in-out infinite;
+}
+
+.alert-banner {
+  animation: bridey-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alert-pulse,
+  .alert-banner {
+    animation: none;
+  }
+}
+
+.studio-dock {
+  border-top: 1px solid var(--studio-line);
+  background: color-mix(in srgb, var(--studio-bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+}
