@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Card, Field, SpecialtyPicker, inputClass } from "@/components/ui";
+import { Button, Card, Field, PageHeader, PageSkeleton, SpecialtyPicker, inputClass } from "@/components/ui";
 import { NEIGHBORHOODS } from "@/lib/constants";
 import { useLang } from "@/lib/language";
 import { COVER_LAYOUTS, PAGE_ACCENTS, PAGE_STYLES } from "@/lib/page-theme";
+import { isTeamBusiness } from "@/lib/roles";
 import { useStudio } from "@/lib/use-studio";
 import { cn, parseSpecialties } from "@/lib/utils";
 
@@ -55,8 +56,11 @@ export default function ProfilePage() {
   }, [data]);
 
   if (loading || !data) {
-    return <p className="text-espresso/50">{lang === "ar" ? "لحظات…" : "Loading…"}</p>;
+    return <PageSkeleton cards={2} />;
   }
+
+  const activeMembers = (data.members || []).filter((row) => row.status === "ACTIVE").length;
+  const showGrowTeam = Boolean(data.permissions?.canManageTeam) && !isTeamBusiness(data.business?.businessType, activeMembers);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -83,15 +87,27 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-4xl">{t.profile}</h1>
-          <p className="mt-2 max-w-xl text-sm text-espresso/60">{t.yourWebsite}</p>
-        </div>
-        <Button href={`/a/${data.artist.slug}`} variant="gold">
-          {t.viewPage}
-        </Button>
-      </div>
+      <PageHeader
+        title={t.profile}
+        body={t.yourWebsite}
+        actions={
+          <Button href={`/a/${data.artist.slug}`} variant="gold">
+            {t.viewPage}
+          </Button>
+        }
+      />
+
+      {showGrowTeam ? (
+        <Card>
+          <p className="font-display text-xl">{t.myTeam}</p>
+          <p className="mt-2 max-w-xl text-sm text-espresso/60">{t.independentTeamBody}</p>
+          <div className="mt-4">
+            <Button href="/dashboard/team#add-member" variant="gold">
+              + {t.addTeamMember}
+            </Button>
+          </div>
+        </Card>
+      ) : null}
 
       <Card>
         <p className="font-display text-xl">{t.photos}</p>
@@ -246,7 +262,7 @@ function PhotoSlot({
   return (
     <label className="block cursor-pointer">
       <p className="mb-2 text-sm text-espresso/70">{label}</p>
-      <div className={cn("overflow-hidden rounded-3xl border border-champagne/40 bg-ivory", tall ? "aspect-[16/9]" : "aspect-square max-w-40")}>
+      <div className={cn("overflow-hidden rounded-2xl border border-champagne/40 bg-ivory", tall ? "aspect-[16/9]" : "aspect-square max-w-40")}>
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt="" className="h-full w-full object-cover" />
@@ -277,7 +293,7 @@ function ChoiceRow({
           onClick={() => onChange(opt.id)}
           className={cn(
             "rounded-full px-3 py-1.5 text-sm",
-            value === opt.id ? "bg-espresso text-ivory" : "bg-ivory text-espresso/70",
+            value === opt.id ? "bg-blush text-espresso" : "bg-ivory text-espresso/70",
           )}
         >
           {opt.label}

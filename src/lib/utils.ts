@@ -153,6 +153,18 @@ export function bookingServiceNames(
   return rows.map((s) => (lang === "ar" ? s.nameAr : s.nameEn)).join(" · ");
 }
 
+export function formatClock(iso: string | Date | null | undefined, lang: "ar" | "en" = "ar") {
+  if (!iso) return "";
+  const date = iso instanceof Date ? iso : new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString(lang === "ar" ? "ar-LY" : "en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Africa/Tripoli",
+  });
+}
+
 export function appUrl() {
   return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 }

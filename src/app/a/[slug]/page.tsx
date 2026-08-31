@@ -3,47 +3,46 @@ import { notFound } from "next/navigation";
 import { canCreateNewBookings, refreshFeeAccount } from "@/lib/fees";
 import { db } from "@/lib/db";
 import { neighborhoodLabel } from "@/lib/utils";
+import { findBusinessBySlug } from "@/lib/workspace";
 import { ArtistPublic } from "./public-view";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const artist = await db.artist.findUnique({ where: { slug } });
-  if (!artist) return { title: "Bridey" };
-  const area = neighborhoodLabel(artist.neighborhood, "ar");
+  const business = await findBusinessBySlug(slug);
+  if (!business) return { title: "Bridey" };
+  const area = neighborhoodLabel(business.neighborhood || business.owner.neighborhood, "ar");
   return {
-    title: `${artist.name}${area ? ` · ${area}` : ""}`,
-    description: artist.tagline || artist.bio || `احجزي موعدك مع ${artist.name}`,
+    title: `${business.name}${area ? ` · ${area}` : ""}`,
+    description: business.owner.tagline || business.bio || business.owner.bio || `احجزي موعدك مع ${business.name}`,
     openGraph: {
-      title: artist.name,
-      description: artist.tagline || artist.bio || "احجزي إطلالة فرحك",
+      title: business.name,
+      description: business.owner.tagline || business.bio || "احجزي إطلالة فرحك",
     },
   };
 }
 
 export default async function ArtistPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const artist = await db.artist.findUnique({
-    where: { slug },
-    include: {
-      services: { where: { active: true }, orderBy: { priceLyd: "asc" } },
-      portfolio: { orderBy: { createdAt: "desc" } },
-      hours: true,
-    },
-  });
-  if (!artist || !artist.onboardingComplete) notFound();
+  const business = await findBusinessBySlug(slug);
+  if (!business || !business.owner.onboardingComplete) notFound();
 
-  const account = await refreshFeeAccount(artist.id);
+  const [services, portfolio, account] = await Promise.all([
+    db.service.findMany({ where: { businessId: business.id, active: true }, orderBy: { priceLyd: "asc" } }),
+    db.portfolioImage.findMany({ where: { artistId: business.ownerId }, orderBy: { createdAt: "desc" } }),
+    refreshFeeAccount(business.ownerId),
+  ]);
 
+  const artist = business.owner;
   return (
     <ArtistPublic
       bookingOpen={canCreateNewBookings(account)}
       artist={{
-        name: artist.name,
-        slug: artist.slug,
-        bio: artist.bio,
+        name: business.name,
+        slug: business.slug,
+        bio: business.bio || artist.bio,
         tagline: artist.tagline,
         specialty: artist.specialty,
-        neighborhood: artist.neighborhood,
+        neighborhood: business.neighborhood || artist.neighborhood,
         snapchat: artist.snapchat,
         instagram: artist.instagram,
         whatsapp: artist.whatsapp,
@@ -53,13 +52,15 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
         accent: artist.accent,
         coverLayout: artist.coverLayout,
         ctaLabel: artist.ctaLabel,
-        bookingHorizonDays: artist.bookingHorizonDays,
-        minNoticeHours: artist.minNoticeHours,
+        bookingHorizonDays: business.bookingHorizonDays,
+        minNoticeHours: business.minNoticeHours,
         showHoursOnPage: artist.showHoursOnPage,
       }}
-      services={artist.services}
-      portfolio={artist.portfolio}
-      hours={artist.hours}
+      services={services}
+      portfolio={portfolio}
+      hours={business.hours}
+      shifts={business.shifts.filter((row) => row.active)}
+      scheduleMode={business.scheduleMode}
     />
   );
 }

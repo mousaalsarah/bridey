@@ -1,10 +1,43 @@
-export const PLATFORM_FEE_LYD = 10;
+export const PLATFORM_FEE_LYD = 5;
 export const CITY = "Benghazi";
 export const TIMEZONE = "Africa/Tripoli";
 export const SLOT_STEP_MIN = 30;
 export const BOOKING_REQUEST_TIMEOUT_MINUTES = 30;
+export const DAY_BUCKET = "DAY";
+export const DEFAULT_DAILY_CAPACITY = 4;
+export const DEFAULT_HAIR_CAPACITY = 5;
 
-export const BLOCKING_STATUSES = ["PENDING", "CONFIRMED"] as const;
+export const BUSINESS_TYPES = [
+  { id: "independent", ar: "خبيرة مستقلة", en: "Independent professional" },
+  { id: "salon", ar: "مركز تجميل", en: "Beauty business" },
+] as const;
+
+export const SCHEDULE_MODES = [
+  { id: "DAY", ar: "حسب اليوم", en: "By day" },
+  { id: "SHIFT", ar: "صباح / مساء", en: "Morning / evening" },
+  { id: "HOURLY", ar: "ساعة محددة", en: "Exact time" },
+] as const;
+
+export const ASSIGNMENT_MODES = [
+  { id: "AUTO", ar: "تعيين تلقائي", en: "Automatic assignment" },
+  { id: "MANUAL", ar: "تعيين يدوي", en: "Manual assignment" },
+] as const;
+
+export const TEAM_ROLES = [
+  { id: "OWNER", ar: "مالكة", en: "Owner" },
+  { id: "MANAGER", ar: "مديرة", en: "Manager" },
+  { id: "MAKEUP_ARTIST", ar: "خبيرة مكياج", en: "Makeup artist" },
+  { id: "HAIRSTYLIST", ar: "مصففة شعر", en: "Hairstylist" },
+  { id: "NAIL_ARTIST", ar: "خبيرة أظافر", en: "Nail artist" },
+  { id: "LASH_ARTIST", ar: "خبيرة رموش", en: "Lash artist" },
+  { id: "OTHER", ar: "أخرى", en: "Other" },
+] as const;
+
+export const MANAGEMENT_ROLES = ["OWNER", "MANAGER"] as const;
+
+export const BLOCKING_STATUSES = ["PENDING", "CONFIRMED", "CHECKED_IN", "IN_PROGRESS"] as const;
+export const LIVE_BOOKING_STATUSES = ["PENDING", "CONFIRMED", "CHECKED_IN", "IN_PROGRESS"] as const;
+export const PASS_HIDDEN_STATUSES = ["PENDING", "DECLINED", "EXPIRED"] as const;
 
 export const BOOKING_SOURCES = [
   { id: "bridey", ar: "برايدي", en: "Bridey" },

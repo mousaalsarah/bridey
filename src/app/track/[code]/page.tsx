@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Brand, Button, LangToggle } from "@/components/ui";
+import { Brand, Button, Card, LangToggle, Skeleton, StatusBadge } from "@/components/ui";
 import { useLang } from "@/lib/language";
 import { formatDate, minutesToTime, minutesUntil } from "@/lib/utils";
 
@@ -15,12 +15,20 @@ type TrackData = {
   expiresAt: string | null;
   artistName: string;
   artistSlug: string;
+  scheduleMode?: string;
+  shift?: { nameAr: string; nameEn: string; startMin: number; endMin: number } | null;
+  assignments?: Array<{ serviceAr: string; serviceEn: string; staffName: string }>;
   services: Array<{ nameAr: string; nameEn: string; durationMin: number; priceLyd: number }>;
+  passAvailable?: boolean;
+  passToken?: string;
+  brideName?: string;
 };
 
 const STATUS_KEY = {
   PENDING: "pending",
   CONFIRMED: "confirmed",
+  CHECKED_IN: "checkedIn",
+  IN_PROGRESS: "inProgress",
   DECLINED: "declined",
   CANCELLED: "cancelled",
   COMPLETED: "completed",
@@ -71,42 +79,44 @@ export default function TrackStatusPage() {
         <h1 className="font-display text-4xl">{t.trackTitle}</h1>
 
         {missing ? (
-          <div className="mt-8 rounded-[2rem] border border-champagne/30 bg-white/75 p-6">
+          <Card className="mt-8">
             <p className="text-espresso/70">{t.trackNotFound}</p>
             <Button href="/track" variant="gold" className="mt-5 w-full">
               {t.trackLookup}
             </Button>
-          </div>
+          </Card>
         ) : null}
 
         {data ? (
-          <div className="mt-8 space-y-4 rounded-[2rem] border border-champagne/30 bg-white/75 p-6 shadow-soft">
-            <p
-              className={`inline-flex rounded-full px-3 py-1 text-sm ${
-                data.status === "CONFIRMED" || data.status === "COMPLETED"
-                  ? "bg-gold text-espresso"
-                  : data.status === "DECLINED" || data.status === "CANCELLED" || data.status === "EXPIRED" || data.status === "NO_SHOW"
-                    ? "bg-rose text-espresso"
-                    : "bg-ivory text-espresso/80"
-              }`}
-            >
-              {statusLabel}
-            </p>
+          <Card className="mt-8 space-y-4">
+            <StatusBadge status={data.status} label={statusLabel} />
             <div className="space-y-1 text-espresso/75">
               <p className="font-display text-2xl">{data.artistName}</p>
               <p>
-                {formatDate(data.date, lang)} · {minutesToTime(data.startMin, lang)} – {minutesToTime(data.endMin, lang)}
+                {formatDate(data.date, lang)}
+                {data.shift
+                  ? ` · ${lang === "ar" ? data.shift.nameAr : data.shift.nameEn}`
+                  : ` · ${minutesToTime(data.startMin, lang)} – ${minutesToTime(data.endMin, lang)}`}
               </p>
+              {data.assignments?.length ? (
+                <ul className="mt-2 space-y-1 text-sm">
+                  {data.assignments.map((row) => (
+                    <li key={`${row.serviceAr}-${row.staffName}`}>
+                      {lang === "ar" ? row.serviceAr : row.serviceEn} · {row.staffName}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
             {data.status === "PENDING" ? (
               <p className="text-sm text-espresso/70">
-                {t.waitingConfirm}
+                {t.bookingSentBody}
                 {data.expiresAt && minutesUntil(data.expiresAt) > 0
                   ? ` · ${t.responseDeadline}: ${minutesUntil(data.expiresAt)} ${t.minutesRemaining}`
                   : ""}
               </p>
             ) : null}
-            {data.status === "CONFIRMED" || data.status === "COMPLETED" ? (
+            {data.status === "CONFIRMED" || data.status === "CHECKED_IN" || data.status === "IN_PROGRESS" || data.status === "COMPLETED" ? (
               <p className="text-sm text-espresso/70">{t.bookingConfirmedBody}</p>
             ) : null}
             {data.status === "DECLINED" ? <p className="text-sm text-espresso/70">{t.bookingDeclinedBody}</p> : null}
@@ -128,6 +138,11 @@ export default function TrackStatusPage() {
                 {data.trackCode}
               </span>
             </p>
+            {data.passAvailable ? (
+              <Button href={`/track/${data.trackCode}/pass`} variant="gold" className="w-full">
+                {t.viewPass}
+              </Button>
+            ) : null}
             <Button
               variant="gold"
               className="w-full"
@@ -143,10 +158,15 @@ export default function TrackStatusPage() {
               {t.publicProfile}
             </Button>
             <p className="text-center text-xs text-espresso/40">{t.poweredBy}</p>
-          </div>
+          </Card>
         ) : null}
 
-        {!data && !missing ? <p className="mt-8 text-espresso/45">{lang === "ar" ? "لحظات…" : "Loading…"}</p> : null}
+        {!data && !missing ? (
+          <div className="mt-8 space-y-3">
+            <Skeleton className="h-40" />
+            <Skeleton className="h-12" />
+          </div>
+        ) : null}
       </main>
     </div>
   );

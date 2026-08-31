@@ -41,6 +41,16 @@ export async function POST(req: Request) {
     },
   });
 
+  const invite = await db.teamMember.findFirst({
+    where: { phone, artistId: null, status: "ACTIVE" },
+  });
+  if (invite) {
+    await db.teamMember.update({
+      where: { id: invite.id },
+      data: { artistId: artist.id, name: invite.name || artist.name },
+    });
+  }
+
   await createSession(artist.id);
   return NextResponse.json({ id: artist.id, slug: artist.slug, onboardingComplete: false });
 }

@@ -11,6 +11,7 @@ export type StudioService = {
   durationMin: number;
   priceLyd: number;
   active: boolean;
+  staffIds?: string[];
 };
 
 export type StudioBooking = {
@@ -29,8 +30,14 @@ export type StudioBooking = {
   platformFeeLyd: number;
   feeStatus: string;
   expiresAt: string | null;
+  contactAvailable?: boolean;
+  scheduleMode?: string;
+  shift?: { id: string; nameAr: string; nameEn: string; startMin: number; endMin: number } | null;
+  assignments?: Array<{ teamMemberId: string; serviceId: string; teamMember: { id: string; name: string; roles: string } }>;
   service: StudioService;
-  items: Array<{ nameAr: string; nameEn: string; durationMin: number; priceLyd: number }>;
+  items: Array<{ serviceId?: string; nameAr: string; nameEn: string; durationMin: number; priceLyd: number; teamMemberId?: string | null }>;
+  paidLyd?: number;
+  depositLyd?: number;
 };
 
 export type StudioFee = {
@@ -68,6 +75,51 @@ export type Studio = {
     onboardingComplete: boolean;
     isDemo: boolean;
   };
+  business?: {
+    id: string;
+    name: string;
+    slug: string;
+    businessType: string;
+    scheduleMode: string;
+    assignmentMode: string;
+    neighborhood: string;
+  };
+  member?: {
+    id: string;
+    name: string;
+    roles: string[];
+    dailyCapacity: number;
+    status: string;
+  };
+  permissions?: {
+    canManageBusiness: boolean;
+    canManageTeam: boolean;
+    canManageServices: boolean;
+    canViewFees: boolean;
+    canAssign: boolean;
+    canSeeBrideContact: boolean;
+  };
+  members?: Array<{
+    id: string;
+    artistId: string | null;
+    name: string;
+    phone: string;
+    roles: string[];
+    dailyCapacity: number;
+    status: string;
+    serviceIds: string[];
+  }>;
+  shifts?: Array<{
+    id: string;
+    key: string;
+    nameAr: string;
+    nameEn: string;
+    startMin: number;
+    endMin: number;
+    capacity: number | null;
+    sortOrder: number;
+    active: boolean;
+  }>;
   services: StudioService[];
   portfolio: { id: string; url: string; caption: string }[];
   hours: { dayOfWeek: number; startMin: number; endMin: number }[];
@@ -118,12 +170,15 @@ export function useStudio() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (broadcast = true) => {
     try {
       const res = await fetch("/api/me");
       if (res.ok) {
         setData(await res.json());
         setError("");
+        if (broadcast && typeof window !== "undefined") {
+          window.dispatchEvent(new Event("bridey-studio"));
+        }
       } else if (res.status === 401) {
         setError("UNAUTHORIZED");
         window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`);
@@ -138,7 +193,10 @@ export function useStudio() {
   }, []);
 
   useEffect(() => {
-    reload();
+    reload(false);
+    const onReload = () => reload(false);
+    window.addEventListener("bridey-studio", onReload);
+    return () => window.removeEventListener("bridey-studio", onReload);
   }, [reload]);
 
   return { data, loading, error, reload };

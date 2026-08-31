@@ -2,6 +2,7 @@
  * HTTP hardening checks against a running Next.js server.
  * Usage: npx tsx prisma/http-scenarios.ts
  */
+import { addDaysISO, todayISO } from "../src/lib/utils";
 const BASE = process.env.BRIDEY_URL || "http://localhost:3000";
 
 function assert(cond: unknown, label: string) {
@@ -107,14 +108,16 @@ async function main() {
   assert(trackSara.ok && sara.trackCode === "BRSARA1", "9 track BRSARA1 works");
   assert(
     !("bridePhone" in sara) &&
-      !("brideName" in sara) &&
       !("artistNotes" in sara) &&
       !("notes" in sara) &&
       !("platformFeeLyd" in sara) &&
       !("fee" in sara) &&
       !("whatsapp" in sara),
-    "9 track payload has no private fields",
+    "9 track payload has no phone, notes, or fees",
   );
+  if (sara.status === "PENDING" || sara.status === "DECLINED" || sara.status === "EXPIRED") {
+    assert(!("brideName" in sara) && !sara.passToken && !sara.passAvailable, "9 pending track has no pass");
+  }
 
   const guess = await fetch(`${BASE}/api/public/track/BRZZZZZZZZ`);
   assert(guess.status === 404, "11 unknown track code is 404");
@@ -129,14 +132,43 @@ async function main() {
   const evening = linaMe.services.find((s: { kind: string; active: boolean }) => s.kind === "evening" && s.active);
   assert(evening, "Lina evening service exists");
 
-  const date = "2026-12-04";
-  const startMin = 18 * 60;
+  let date = "";
+  let startMin: number | undefined;
+  let shiftId: string | undefined;
+  let shiftRemaining = 0;
+  for (let i = 1; i <= 21; i += 1) {
+    const iso = addDaysISO(todayISO(), i);
+    const avail = await json(
+      await fetch(`${BASE}/api/public/availability?slug=lina&date=${iso}&serviceIds=${evening.id}`),
+    );
+    if (avail.mode === "SHIFT") {
+      const shift = (avail.shifts || []).find((row: { remaining: number }) => row.remaining > 0);
+      if (shift) {
+        date = iso;
+        shiftId = shift.id;
+        shiftRemaining = shift.remaining;
+        break;
+      }
+    } else if (avail.available) {
+      const slots = await json(
+        await fetch(`${BASE}/api/public/slots?slug=lina&date=${iso}&serviceIds=${evening.id}`),
+      );
+      if (slots.slots?.length) {
+        date = iso;
+        startMin = slots.slots[0];
+        shiftRemaining = 1;
+        break;
+      }
+    }
+  }
+  assert(date, "found a free Lina slot for race");
   const stamp = Date.now().toString().slice(-6);
   const body = {
     slug: "lina",
     serviceIds: [evening.id],
     date,
     startMin,
+    shiftId,
     brideName: "عروس سباق",
     bridePhone: `09170${stamp.slice(0, 5)}`.padEnd(10, "0"),
   };
@@ -159,7 +191,11 @@ async function main() {
     }),
   ]);
   const results = [a.status, b.status].sort();
-  assert(results.includes(200) && results.includes(409), "5 only one of two simultaneous books succeeds");
+  if (shiftRemaining === 1) {
+    assert(results.includes(200) && results.includes(409), `5 only one of two simultaneous books succeeds (${a.status},${b.status})`);
+  } else {
+    assert(results.includes(200), `5 public book succeeds with remaining ${shiftRemaining} (${a.status},${b.status})`);
+  }
 
   const winner = a.ok ? await json(a) : await json(b);
   const confirm1 = await fetch(`${BASE}/api/bookings/${winner.id}`, {
@@ -177,14 +213,25 @@ async function main() {
 
   const feesAfter = await json(await fetch(`${BASE}/api/me`, { headers: { cookie: linaCookie } }));
   const winnerFees = feesAfter.fees.filter((f: { bookingId: string }) => f.bookingId === winner.id);
-  assert(winnerFees.length === 1 && winnerFees[0].amountLyd === 10, "2/4 exactly one 10 LYD fee");
+  assert(winnerFees.length === 1 && winnerFees[0].amountLyd === 5, "2/4 exactly one 5 LYD fee");
 
-  const complete = await fetch(`${BASE}/api/bookings/${winner.id}`, {
-    method: "PATCH",
+  const complete = await fetch(`${BASE}/api/bookings/${winner.id}/appointment`, {
+    method: "POST",
     headers: { "Content-Type": "application/json", cookie: linaCookie },
-    body: JSON.stringify({ status: "COMPLETED" }),
+    body: JSON.stringify({ action: "check_in" }),
   });
-  assert(complete.ok, "12 complete confirmed booking");
+  assert(complete.ok, "12 check-in confirmed booking");
+  await fetch(`${BASE}/api/bookings/${winner.id}/appointment`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", cookie: linaCookie },
+    body: JSON.stringify({ action: "start" }),
+  });
+  const done = await fetch(`${BASE}/api/bookings/${winner.id}/appointment`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", cookie: linaCookie },
+    body: JSON.stringify({ action: "complete" }),
+  });
+  assert(done.ok, "12 complete after start");
   const feesDone = await json(await fetch(`${BASE}/api/me`, { headers: { cookie: linaCookie } }));
   assert(
     feesDone.fees.filter((f: { bookingId: string }) => f.bookingId === winner.id).length === 1,

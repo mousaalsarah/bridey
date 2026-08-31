@@ -35,7 +35,7 @@ export default function AdminArtistsPage() {
             key={id || "all"}
             type="button"
             onClick={() => setStatus(id)}
-            className={`rounded-full px-3 py-1 text-sm ${status === id ? "bg-espresso text-ivory" : "bg-white/70"}`}
+            className={`rounded-full px-3 py-1.5 text-sm ${status === id ? "bg-blush text-espresso" : "bg-white text-espresso/70"}`}
           >
             {id || "الكل"}
           </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, Field, inputClass } from "@/components/ui";
+import { Button, Card, Field, PageHeader, PageSkeleton, StatCard, inputClass } from "@/components/ui";
 import { useLang } from "@/lib/language";
 import { useStudio } from "@/lib/use-studio";
 import { formatDate, todayISO } from "@/lib/utils";
@@ -32,7 +32,15 @@ export default function FeesPage() {
   const [file, setFile] = useState<File | null>(null);
 
   if (loading || !data) {
-    return <p className="text-espresso/50">{lang === "ar" ? "لحظات…" : "Loading…"}</p>;
+    return <PageSkeleton />;
+  }
+
+  if (data.permissions?.canViewFees === false) {
+    return (
+      <Card>
+        <p className="font-display text-2xl">{t.forbidden}</p>
+      </Card>
+    );
   }
 
   const month = todayISO().slice(0, 7);
@@ -51,7 +59,7 @@ export default function FeesPage() {
     body.set("method", method);
     body.set("amountLyd", String(invoice.amountLyd));
     body.set("paidOn", paidOn);
-    body.set("reference", invoice.reference);
+    body.set("referenc e", invoice.reference);
     body.set("note", note);
     if (file) body.set("receipt", file);
     const res = await fetch("/api/fees/submit", { method: "POST", body });
@@ -66,27 +74,11 @@ export default function FeesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-4xl">{t.earnings}</h1>
-        <p className="mt-2 text-sm text-espresso/60">{t.feeBody}</p>
-      </div>
+      <PageHeader title={t.earnings} body={t.feeBody} />
       <div className="grid gap-3 sm:grid-cols-3">
-        <Card>
-          <p className="text-xs text-espresso/50">{t.feesThisMonth}</p>
-          <p className="mt-1 font-display text-4xl">{monthFees.length}</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-espresso/50">{t.thisMonth}</p>
-          <p className="mt-1 font-display text-4xl">
-            {monthTotal} {t.lyd}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-xs text-espresso/50">{t.feeBalance}</p>
-          <p className="mt-1 font-display text-4xl">
-            {data.outstanding} {t.lyd}
-          </p>
-        </Card>
+        <StatCard label={t.feesThisMonth} value={monthFees.length} />
+        <StatCard label={t.thisMonth} value={`${monthTotal} ${t.lyd}`} />
+        <StatCard label={t.feeBalance} value={`${data.outstanding} ${t.lyd}`} tone={data.outstanding > 0 ? "warning" : "default"} />
       </div>
 
       {invoice && invoice.amountLyd > 0 ? (
@@ -115,7 +107,7 @@ export default function FeesPage() {
             </div>
           ) : null}
           {billing?.account.status === "PAYMENT_PENDING" ? (
-            <p className="text-gold">{t.billingReview}</p>
+            <p className="text-blush">{t.billingReview}</p>
           ) : (
             <Button variant="gold" onClick={() => setShowForm(true)}>
               {t.billingIPaid}
@@ -145,9 +137,9 @@ export default function FeesPage() {
             <Field label={t.billingNote}>
               <textarea className={inputClass("min-h-16")} value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
-            {error ? <p className="text-sm text-red-700">{error}</p> : null}
+            {error ? <p className="text-sm text-error">{error}</p> : null}
             <div className="flex gap-2">
-              <Button type="submit" variant="gold" disabled={busy}>
+              <Button type="submit" variant="gold" disabled={busy} loading={busy}>
                 {t.billingSubmit}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>

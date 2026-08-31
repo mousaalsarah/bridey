@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { deriveShiftsFromWindow } from "../src/lib/shifts";
+import { ensureWorkspace } from "../src/lib/workspace";
 
 const db = new PrismaClient();
 
@@ -73,6 +75,156 @@ async function backfill() {
       });
     }
   }
+}
+
+async function seedSaraBeauty(passwordHash: string) {
+  const artists = await db.artist.findMany();
+  for (const artist of artists) {
+    await ensureWorkspace(artist);
+  }
+
+  const sara = await db.artist.upsert({
+    where: { phone: "218930000003" },
+    update: {},
+    create: {
+      name: "سارة بيوتي",
+      phone: "218930000003",
+      passwordHash,
+      slug: "sara-beauty",
+      bio: "مركز تجميل للعرائس في بنغازي. مكياج وشعر في نفس المكان.",
+      specialty: "makeup,hair",
+      neighborhood: "fuwayhat",
+      whatsapp: "218930000003",
+      onboardingComplete: true,
+      isDemo: true,
+    },
+  });
+  await db.artist.update({
+    where: { id: sara.id },
+    data: {
+      name: "سارة",
+      tagline: "مركز سارة بيوتي",
+      onboardingComplete: true,
+      isDemo: true,
+    },
+  });
+
+  const workspace = await ensureWorkspace(await db.artist.findUniqueOrThrow({ where: { id: sara.id } }));
+  await db.business.update({
+    where: { id: workspace.business.id },
+    data: {
+      name: "سارة بيوتي",
+      slug: "sara-beauty",
+      businessType: "salon",
+      scheduleMode: "SHIFT",
+      assignmentMode: "AUTO",
+    },
+  });
+  await db.artist.update({ where: { id: sara.id }, data: { slug: "sara-beauty" } });
+
+  await db.weeklyHour.deleteMany({ where: { OR: [{ artistId: sara.id }, { businessId: workspace.business.id }] } });
+  await db.weeklyHour.createMany({
+    data: [4, 5, 6].map((dayOfWeek) => ({
+      artistId: sara.id,
+      businessId: workspace.business.id,
+      dayOfWeek,
+      startMin: 10 * 60,
+      endMin: 22 * 60,
+    })),
+  });
+  await db.shift.deleteMany({ where: { businessId: workspace.business.id } });
+  await db.shift.createMany({
+    data: deriveShiftsFromWindow(10 * 60, 22 * 60).map((shift) => ({
+      businessId: workspace.business.id,
+      key: shift.key,
+      nameAr: shift.nameAr,
+      nameEn: shift.nameEn,
+      startMin: shift.startMin,
+      endMin: shift.endMin,
+      sortOrder: shift.sortOrder,
+      active: true,
+    })),
+  });
+
+  await db.teamMember.update({
+    where: { id: workspace.member.id },
+    data: { name: "سارة", dailyCapacity: 4, roles: "OWNER,MAKEUP_ARTIST" },
+  });
+
+  async function staffArtist(name: string, phone: string, slug: string) {
+    return db.artist.upsert({
+      where: { phone },
+      update: {},
+      create: {
+        name,
+        phone,
+        passwordHash,
+        slug,
+        specialty: "makeup",
+        neighborhood: "fuwayhat",
+        whatsapp: phone,
+        onboardingComplete: false,
+        isDemo: true,
+      },
+    });
+  }
+
+  const huda = await staffArtist("هدى", "218930000004", "huda-sara");
+  const aisha = await staffArtist("عائشة", "218930000005", "aisha-sara");
+  const mona = await staffArtist("منى", "218930000006", "mona-sara");
+
+  async function member(artist: { id: string; name: string; phone: string }, roles: string, capacity: number) {
+    const existing = await db.teamMember.findFirst({
+      where: { businessId: workspace.business.id, artistId: artist.id },
+    });
+    if (existing) {
+      return db.teamMember.update({
+        where: { id: existing.id },
+        data: { name: artist.name, phone: artist.phone, roles, dailyCapacity: capacity, status: "ACTIVE" },
+      });
+    }
+    return db.teamMember.create({
+      data: {
+        businessId: workspace.business.id,
+        artistId: artist.id,
+        name: artist.name,
+        phone: artist.phone,
+        roles,
+        dailyCapacity: capacity,
+        status: "ACTIVE",
+      },
+    });
+  }
+
+  const hudaMember = await member(huda, "MAKEUP_ARTIST", 3);
+  const aishaMember = await member(aisha, "MAKEUP_ARTIST", 4);
+  const monaMember = await member(mona, "HAIRSTYLIST", 5);
+
+  async function service(nameAr: string, nameEn: string, kind: string, price: number, memberIds: string[]) {
+    let row = await db.service.findFirst({ where: { businessId: workspace.business.id, nameAr } });
+    if (!row) {
+      row = await db.service.create({
+        data: {
+          artistId: sara.id,
+          businessId: workspace.business.id,
+          nameAr,
+          nameEn,
+          kind,
+          durationMin: 120,
+          priceLyd: price,
+          active: true,
+        },
+      });
+    }
+    await db.teamMemberService.deleteMany({ where: { serviceId: row.id } });
+    await db.teamMemberService.createMany({
+      data: memberIds.map((teamMemberId) => ({ teamMemberId, serviceId: row!.id })),
+    });
+    return row;
+  }
+
+  await service("مكياج عروس", "Bridal Makeup", "bridal", 400, [workspace.member.id, hudaMember.id, aishaMember.id]);
+  await service("تسريحة عروس", "Bridal Hair", "hair", 250, [monaMember.id]);
 }
 
 async function main() {
@@ -235,6 +387,12 @@ async function main() {
   }
 
   await backfill();
+  await seedSaraBeauty(passwordHash);
+
+  await db.artist.updateMany({
+    where: { OR: [{ slug: { startsWith: "cap-" } }, { name: "اختبار سعة" }] },
+    data: { onboardingComplete: false, isDemo: true },
+  });
 
   await db.paymentSettings.upsert({
     where: { id: "default" },

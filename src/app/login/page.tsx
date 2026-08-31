@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { Brand, Button, Field, LangToggle, inputClass } from "@/components/ui";
+import { Brand, Button, Card, Field, LangToggle, inputClass } from "@/components/ui";
 import { useLang } from "@/lib/language";
 
 function LoginForm() {
@@ -30,7 +30,9 @@ function LoginForm() {
       return;
     }
     const next = params.get("next");
-    router.push(next || (data.onboardingComplete ? "/dashboard" : "/onboarding"));
+    const safeNext =
+      next && next.startsWith("/") && !next.startsWith("//") && !next.includes("://") ? next : "";
+    router.push(safeNext || (data.onboardingComplete ? "/dashboard" : "/onboarding"));
   }
 
   return (
@@ -41,8 +43,8 @@ function LoginForm() {
       <Field label={t.password}>
         <input className={inputClass()} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </Field>
-      {error ? <p className="text-sm text-blush">{error}</p> : null}
-      <Button type="submit" variant="gold" className="w-full" disabled={loading}>
+      {error ? <p className="text-sm text-error">{error}</p> : null}
+      <Button type="submit" variant="gold" className="w-full" disabled={loading} loading={loading}>
         {t.login}
       </Button>
       <p className="text-center text-xs text-espresso/45">{t.demoHint}</p>
@@ -61,11 +63,11 @@ export default function LoginPage() {
       <main className="mx-auto w-full max-w-md flex-1 px-5 pb-16">
         <h1 className="font-display text-4xl text-espresso">{t.loginTitle}</h1>
         <p className="mt-2 text-espresso/60">{t.tagline}</p>
-        <div className="mt-8 rounded-[2rem] border border-champagne/30 bg-white/75 p-6 shadow-soft">
+        <Card className="mt-8 p-6">
           <Suspense>
             <LoginForm />
           </Suspense>
-        </div>
+        </Card>
         <Button href="/signup" variant="ghost" className="mt-5 w-full">
           {t.orSignup}
         </Button>

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Brand, Button, Field, LangToggle, inputClass } from "@/components/ui";
+import { Brand, Button, Card, Field, LangToggle, inputClass } from "@/components/ui";
 import { useLang } from "@/lib/language";
 
 export default function SignupPage() {
@@ -43,7 +43,8 @@ export default function SignupPage() {
       <main className="mx-auto w-full max-w-md flex-1 px-5 pb-16">
         <h1 className="font-display text-4xl text-espresso">{t.signupTitle}</h1>
         <p className="mt-2 text-espresso/60">{t.signupHint}</p>
-        <form onSubmit={submit} className="mt-8 space-y-4 rounded-[2rem] border border-champagne/30 bg-white/75 p-6 shadow-soft">
+        <form onSubmit={submit} className="mt-8 space-y-4">
+          <Card className="space-y-4 p-6">
           <Field label={t.name}>
             <input className={inputClass()} value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
@@ -53,10 +54,11 @@ export default function SignupPage() {
           <Field label={t.password}>
             <input className={inputClass()} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>
-          {error ? <p className="text-sm text-red-700">{error}</p> : null}
-          <Button type="submit" variant="gold" className="w-full" disabled={loading}>
+          {error ? <p className="text-sm text-error">{error}</p> : null}
+          <Button type="submit" variant="gold" className="w-full" disabled={loading} loading={loading}>
             {t.signup}
           </Button>
+          </Card>
         </form>
         <Button href="/login" variant="ghost" className="mt-5 w-full">
           {t.orLogin}

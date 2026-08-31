@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Button, Card, Field, inputClass } from "@/components/ui";
+import { useState } from "react";
+import { Button, Card, Field, PageHeader, PageSkeleton, inputClass } from "@/components/ui";
 import { MANUAL_SOURCES } from "@/lib/constants";
 import { useLang } from "@/lib/language";
 import { useStudio } from "@/lib/use-studio";
-import { todayISO } from "@/lib/utils";
+import { minutesToTime, todayISO } from "@/lib/utils";
 
 export default function NewAppointmentPage() {
   const { t, lang } = useLang();
@@ -15,8 +15,8 @@ export default function NewAppointmentPage() {
   const [brideName, setBrideName] = useState("");
   const [bridePhone, setBridePhone] = useState("");
   const [date, setDate] = useState(todayISO());
-  const [startMin, setStartMin] = useState(10 * 60);
-  const [endMin, setEndMin] = useState(12 * 60);
+  const [shiftId, setShiftId] = useState("");
+  const [preferredByService, setPreferredByService] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<string[]>([]);
   const [source, setSource] = useState("whatsapp");
   const [notes, setNotes] = useState("");
@@ -25,14 +25,20 @@ export default function NewAppointmentPage() {
   const [busy, setBusy] = useState(false);
 
   const services = (data?.services || []).filter((s) => s.active);
-  const selectedDuration = services.filter((s) => selected.includes(s.id)).reduce((sum, s) => sum + s.durationMin, 0);
-
-  useEffect(() => {
-    if (selectedDuration > 0) setEndMin(startMin + selectedDuration);
-  }, [selectedDuration, startMin]);
+  const shifts = (data?.shifts || []).filter((s) => s.active);
+  const members = (data?.members || []).filter((row) => row.status === "ACTIVE");
+  const mode = data?.business?.scheduleMode || "SHIFT";
 
   if (loading || !data) {
-    return <p className="text-espresso/50">{lang === "ar" ? "لحظات…" : "Loading…"}</p>;
+    return <PageSkeleton />;
+  }
+
+  if (data.permissions?.canManageBusiness === false) {
+    return (
+      <Card>
+        <p className="font-display text-2xl">{t.forbidden}</p>
+      </Card>
+    );
   }
 
   if (data.billing && !data.billing.account.canCreateBookings) {
@@ -59,8 +65,10 @@ export default function NewAppointmentPage() {
           brideName,
           bridePhone,
           date,
-          startMin,
-          endMin,
+          shiftId: mode === "SHIFT" ? shiftId || undefined : undefined,
+          preferredByService: Object.fromEntries(
+            Object.entries(preferredByService).filter(([id, memberId]) => selected.includes(id) && memberId),
+          ),
           serviceIds: selected,
           source,
           notes,
@@ -74,9 +82,11 @@ export default function NewAppointmentPage() {
             ? t.invalidPhone
             : body.error === "UNAVAILABLE"
               ? t.slotTaken
-              : body.error === "FEES_PAUSED"
-                ? t.billingPausedBody
-                : t.required,
+              : body.error === "PREFERRED_UNAVAILABLE"
+                ? t.preferredUnavailable
+                : body.error === "FEES_PAUSED"
+                  ? t.billingPausedBody
+                  : t.required,
         );
         return;
       }
@@ -90,15 +100,7 @@ export default function NewAppointmentPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-4xl">{t.addAppointment}</h1>
-        <p className="mt-2 text-sm text-espresso/60">{t.manualFeeHint}</p>
-        {selectedDuration ? (
-          <p className="mt-1 text-sm text-espresso/50">
-            {t.durationHint} {selectedDuration} {t.minutes}
-          </p>
-        ) : null}
-      </div>
+      <PageHeader title={t.addAppointment} body={t.manualFeeHint} />
       <Card>
         <form onSubmit={submit} className="space-y-4">
           <Field label={t.brideName}>
@@ -107,33 +109,21 @@ export default function NewAppointmentPage() {
           <Field label={t.phone}>
             <input className={inputClass()} dir="ltr" value={bridePhone} onChange={(e) => setBridePhone(e.target.value)} required />
           </Field>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label={t.chooseDay}>
-              <input className={inputClass()} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          <Field label={t.chooseDay}>
+            <input className={inputClass()} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          </Field>
+          {mode === "SHIFT" ? (
+            <Field label={t.chooseShift}>
+              <select className={inputClass()} value={shiftId} onChange={(e) => setShiftId(e.target.value)} required>
+                <option value="">{t.chooseShift}</option>
+                {shifts.map((shift) => (
+                  <option key={shift.id} value={shift.id}>
+                    {lang === "ar" ? shift.nameAr : shift.nameEn} · {minutesToTime(shift.startMin, lang)}
+                  </option>
+                ))}
+              </select>
             </Field>
-            <Field label={t.chooseTime}>
-              <input
-                className={inputClass()}
-                type="time"
-                value={`${String(Math.floor(startMin / 60)).padStart(2, "0")}:${String(startMin % 60).padStart(2, "0")}`}
-                onChange={(e) => {
-                  const [h, m] = e.target.value.split(":").map(Number);
-                  setStartMin(h * 60 + m);
-                }}
-              />
-            </Field>
-            <Field label={t.endTime}>
-              <input
-                className={inputClass()}
-                type="time"
-                value={`${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`}
-                onChange={(e) => {
-                  const [h, m] = e.target.value.split(":").map(Number);
-                  setEndMin(h * 60 + m);
-                }}
-              />
-            </Field>
-          </div>
+          ) : null}
           <Field label={t.services}>
             <div className="space-y-2">
               {services.map((s) => (
@@ -149,13 +139,41 @@ export default function NewAppointmentPage() {
                     />
                     {lang === "ar" ? s.nameAr : s.nameEn}
                   </span>
-                  <span>
-                    {s.durationMin} {t.minutes}
-                  </span>
                 </label>
               ))}
             </div>
           </Field>
+          {selected.map((serviceId) => {
+            const service = services.find((row) => row.id === serviceId);
+            const options = members.filter((member) => member.serviceIds.includes(serviceId));
+            if (!service || options.length === 0 || members.length <= 1) return null;
+            return (
+              <Field
+                key={serviceId}
+                label={`${t.preferredStaff} · ${lang === "ar" ? service.nameAr : service.nameEn}`}
+              >
+                <select
+                  className={inputClass()}
+                  value={preferredByService[serviceId] || (options.length === 1 ? options[0].id : "")}
+                  onChange={(e) =>
+                    setPreferredByService((current) => {
+                      const next = { ...current };
+                      if (e.target.value) next[serviceId] = e.target.value;
+                      else delete next[serviceId];
+                      return next;
+                    })
+                  }
+                >
+                  {options.length > 1 ? <option value="">{t.anyAvailableStaff}</option> : null}
+                  {options.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            );
+          })}
           <Field label={t.bookingSource}>
             <select className={inputClass()} value={source} onChange={(e) => setSource(e.target.value)}>
               {MANUAL_SOURCES.map((s) => (
@@ -172,9 +190,9 @@ export default function NewAppointmentPage() {
           <Field label={t.artistNotes}>
             <textarea className={inputClass("min-h-16")} value={artistNotes} onChange={(e) => setArtistNotes(e.target.value)} />
           </Field>
-          {error ? <p className="text-sm text-red-700">{error}</p> : null}
+          {error ? <p className="text-sm text-error">{error}</p> : null}
           <div className="flex gap-2">
-            <Button type="submit" variant="gold" disabled={busy || selected.length === 0}>
+            <Button type="submit" variant="gold" disabled={busy || selected.length === 0} loading={busy}>
               {t.save}
             </Button>
             <Button href="/dashboard" variant="ghost">

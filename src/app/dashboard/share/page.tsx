@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, PageHeader, PageSkeleton } from "@/components/ui";
 import { useLang } from "@/lib/language";
 import { buildShareCard, copyImage, downloadBlob, shareImage } from "@/lib/share-card";
 import { useStudio } from "@/lib/use-studio";
@@ -17,7 +17,7 @@ export default function SharePage() {
   const qrSrc = useMemo(() => (url ? `/api/qr?data=${encodeURIComponent(url)}` : ""), [url]);
 
   if (loading || !data) {
-    return <p className="text-espresso/50">{lang === "ar" ? "لحظات…" : "Loading…"}</p>;
+    return <PageSkeleton cards={2} />;
   }
 
   const artist = data.artist;
@@ -58,14 +58,11 @@ export default function SharePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-4xl">{t.share}</h1>
-        <p className="mt-2 max-w-xl text-espresso/65">{t.shareHint}</p>
-      </div>
+      <PageHeader title={t.share} body={t.shareHint} />
 
       <Card className="overflow-hidden p-0">
         <div className="bg-espresso px-6 py-8 text-ivory">
-          <p className="text-xs tracking-[0.28em] text-champagne">BRIDEY · {t.city.toUpperCase()}</p>
+          <p className="text-xs font-medium tracking-[0.28em] text-blush">BRIDEY · {t.city.toUpperCase()}</p>
           <p className="mt-2 font-display text-3xl">{data.artist.name}</p>
           <p className="mt-4 break-all font-mono text-sm text-ivory/80" dir="ltr">
             {url}
@@ -88,7 +85,7 @@ export default function SharePage() {
         <Card>
           <p className="font-display text-xl">{lang === "ar" ? "للستوري" : "For your story"}</p>
           <p className="mt-2 text-sm text-espresso/60">{t.qrHint}</p>
-          <ol className="mt-3 list-decimal space-y-2 pr-5 text-sm text-espresso/70">
+          <ol className="mt-3 list-decimal space-y-2 ps-5 text-sm text-espresso/70">
             <li>{lang === "ar" ? "انسخ الرابط أو احفظي صورة الـ QR" : "Copy the link or save the QR image"}</li>
             <li>{lang === "ar" ? "حطيها في ستوري السناب" : "Add it to your Snapchat story"}</li>
             <li>{lang === "ar" ? "العروس تمسح الكود أو تضغط الرابط وتحجز" : "The bride scans or taps and books"}</li>

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Brand, Button, Field, LangToggle, SpecialtyPicker, inputClass } from "@/components/ui";
+import { Brand, Button, Card, Field, LangToggle, SpecialtyPicker, inputClass } from "@/components/ui";
 import { HOUR_PRESETS, NEIGHBORHOODS, SERVICE_KINDS } from "@/lib/constants";
 import { useLang } from "@/lib/language";
 
@@ -29,6 +29,7 @@ export default function OnboardingPage() {
     { nameAr: lang === "ar" ? "مكياج عروس كامل" : "Full bridal makeup", kind: "bridal", durationMin: 120, priceLyd: 350 },
   ]);
   const [hoursPreset, setHoursPreset] = useState("bride-days");
+  const [businessType, setBusinessType] = useState<"independent" | "salon">("independent");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -59,6 +60,7 @@ export default function OnboardingPage() {
           .filter((s) => s.nameAr.trim().length >= 2)
           .map((s) => ({ ...s, nameEn: s.nameAr })),
         hoursPreset,
+        businessType,
       }),
     });
     setLoading(false);
@@ -76,12 +78,28 @@ export default function OnboardingPage() {
         <LangToggle />
       </header>
       <main className="mx-auto max-w-xl px-5 pb-16">
-        <p className="text-xs tracking-[0.25em] text-gold uppercase">0{step + 1} / 03</p>
+        <p className="text-xs font-medium tracking-[0.25em] text-blush uppercase">0{step + 1} / 03</p>
         <h1 className="mt-2 font-display text-4xl">{t.onboardingTitle}</h1>
 
-        <div className="mt-8 rounded-[2rem] border border-champagne/30 bg-white/75 p-6 shadow-soft">
+        <Card className="mt-8 p-6">
           {step === 0 ? (
             <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBusinessType("independent")}
+                  className={`rounded-2xl border p-3 text-sm ${businessType === "independent" ? "border-blush bg-rose/50" : "border-champagne/30"}`}
+                >
+                  {t.independentType}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBusinessType("salon")}
+                  className={`rounded-2xl border p-3 text-sm ${businessType === "salon" ? "border-blush bg-rose/50" : "border-champagne/30"}`}
+                >
+                  {t.salonType}
+                </button>
+              </div>
               <Field label={t.specialty}>
                 <SpecialtyPicker value={specialties} onChange={setSpecialties} />
               </Field>
@@ -109,7 +127,7 @@ export default function OnboardingPage() {
               {services.map((service, index) => (
                 <div key={index} className="space-y-3 rounded-2xl border border-champagne/30 bg-ivory/60 p-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-gold">
+                    <p className="text-xs text-blush">
                       {t.services} 0{index + 1}
                     </p>
                     {services.length > 1 ? (
@@ -155,7 +173,7 @@ export default function OnboardingPage() {
                   key={p.id}
                   type="button"
                   onClick={() => setHoursPreset(p.id)}
-                  className={`w-full rounded-2xl border p-4 text-start ${hoursPreset === p.id ? "border-gold bg-rose/50" : "border-champagne/30 bg-white"}`}
+                  className={`w-full rounded-2xl border p-4 text-start ${hoursPreset === p.id ? "border-blush bg-rose/50" : "border-champagne/30 bg-white"}`}
                 >
                   <p className="font-medium">{p[lang]}</p>
                   <p className="text-sm text-espresso/55">{lang === "ar" ? p.hintAr : p.hintEn}</p>
@@ -164,7 +182,7 @@ export default function OnboardingPage() {
             </div>
           ) : null}
 
-          {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
+          {error ? <p className="mt-4 text-sm text-error">{error}</p> : null}
 
           <div className="mt-6 flex gap-3">
             {step > 0 ? (
@@ -177,12 +195,12 @@ export default function OnboardingPage() {
                 {t.next}
               </Button>
             ) : (
-              <Button variant="gold" className="flex-1" disabled={loading} onClick={finish}>
+              <Button variant="gold" className="flex-1" disabled={loading} loading={loading} onClick={finish}>
                 {t.finish}
               </Button>
             )}
           </div>
-        </div>
+        </Card>
       </main>
     </div>
   );

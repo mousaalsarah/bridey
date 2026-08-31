@@ -2,7 +2,7 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { Brand, Button, LangToggle } from "@/components/ui";
+import { Brand, Button, Card, LangToggle } from "@/components/ui";
 import { useLang } from "@/lib/language";
 
 function DoneCard() {
@@ -12,8 +12,9 @@ function DoneCard() {
   const code = (search.get("code") || "").toUpperCase();
 
   return (
-    <div className="rounded-[2rem] border border-champagne/30 bg-white/75 p-8 text-center shadow-soft">
+    <Card className="p-8 text-center">
       <h1 className="font-display text-4xl">{t.bookingSent}</h1>
+      <p className="mt-3 text-sm text-espresso/70">{t.bookingSentBody}</p>
       {code ? (
         <p className="mt-5 text-espresso/70">
           {t.bookingNumber}:{" "}
@@ -36,7 +37,7 @@ function DoneCard() {
           {t.publicProfile}
         </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 

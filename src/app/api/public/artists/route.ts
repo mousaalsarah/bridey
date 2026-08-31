@@ -2,25 +2,34 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 export async function GET() {
-  const artists = await db.artist.findMany({
-    where: { onboardingComplete: true },
+  const businesses = await db.business.findMany({
+    where: { owner: { onboardingComplete: true } },
     include: {
+      owner: true,
       services: { where: { active: true }, take: 1, orderBy: { priceLyd: "asc" } },
-      portfolio: { take: 1, orderBy: { createdAt: "desc" } },
     },
     orderBy: { createdAt: "desc" },
   });
 
+  const covers = await db.portfolioImage.findMany({
+    where: { artistId: { in: businesses.map((row) => row.ownerId) } },
+    orderBy: { createdAt: "desc" },
+  });
+  const coverByOwner = new Map<string, string>();
+  for (const image of covers) {
+    if (!coverByOwner.has(image.artistId)) coverByOwner.set(image.artistId, image.url);
+  }
+
   return NextResponse.json(
-    artists.map((a) => ({
-      name: a.name,
-      slug: a.slug,
-      specialty: a.specialty,
-      neighborhood: a.neighborhood,
-      bio: a.bio,
-      avatarUrl: a.avatarUrl,
-      cover: a.portfolio[0]?.url || "",
-      fromPrice: a.services[0]?.priceLyd ?? null,
+    businesses.map((row) => ({
+      name: row.name,
+      slug: row.slug,
+      specialty: row.owner.specialty,
+      neighborhood: row.neighborhood || row.owner.neighborhood,
+      bio: row.bio || row.owner.bio,
+      avatarUrl: row.owner.avatarUrl,
+      cover: row.owner.coverUrl || coverByOwner.get(row.ownerId) || "",
+      fromPrice: row.services[0]?.priceLyd ?? null,
     })),
   );
 }

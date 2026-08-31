@@ -17,12 +17,15 @@ type Service = {
 };
 
 type Hour = { dayOfWeek: number; startMin: number; endMin: number };
+type Shift = { id: string; nameAr: string; nameEn: string; startMin: number; endMin: number };
 
 export function ArtistPublic({
   artist,
   services,
   portfolio,
   hours,
+  shifts = [],
+  scheduleMode = "SHIFT",
   bookingOpen = true,
 }: {
   artist: {
@@ -48,6 +51,8 @@ export function ArtistPublic({
   services: Service[];
   portfolio: { id: string; url: string; caption: string }[];
   hours: Hour[];
+  shifts?: Shift[];
+  scheduleMode?: string;
   bookingOpen?: boolean;
 }) {
   const { t, lang } = useLang();
@@ -142,7 +147,7 @@ export function ArtistPublic({
             <div className="mt-4 grid grid-cols-2 gap-3">
               {portfolio.map((img) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={img.id} src={img.url} alt={img.caption} className="aspect-[3/4] w-full rounded-3xl object-cover" />
+                <img key={img.id} src={img.url} alt={img.caption} className="aspect-[3/4] w-full rounded-2xl object-cover" />
               ))}
             </div>
           </section>
@@ -169,6 +174,18 @@ export function ArtistPublic({
                 );
               })}
             </ul>
+            {scheduleMode !== "HOURLY" && shifts.length ? (
+              <ul className="studio-card mt-3 space-y-2 p-4 text-sm">
+                {shifts.map((shift) => (
+                  <li key={shift.id} className="flex justify-between">
+                    <span>{lang === "ar" ? shift.nameAr : shift.nameEn}</span>
+                    <span className="studio-muted">
+                      {minutesToTime(shift.startMin, lang)} – {minutesToTime(shift.endMin, lang)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </section>
         ) : null}
 
@@ -222,7 +239,7 @@ function Hero({
   if (layout === "split") {
     return (
       <div className="mx-auto grid max-w-3xl gap-4 px-5 sm:grid-cols-[minmax(0,0.9fr)_1.1fr] sm:items-stretch">
-        <div className="overflow-hidden rounded-[2rem]">
+        <div className="overflow-hidden rounded-[20px]">
           {cover ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={cover} alt="" className="h-64 w-full object-cover sm:h-full" />
@@ -242,9 +259,9 @@ function Hero({
       <div className="mx-auto max-w-sm px-5">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" className="aspect-[3/4] w-full rounded-[2rem] object-cover" />
+          <img src={cover} alt="" className="aspect-[3/4] w-full rounded-[20px] object-cover" />
         ) : (
-          <div className="tile aspect-[3/4] rounded-[2rem]" />
+          <div className="tile aspect-[3/4] rounded-[20px]" />
         )}
       </div>
     );
@@ -254,9 +271,9 @@ function Hero({
     <div className="mx-auto max-w-3xl px-5">
       {cover ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={cover} alt="" className="h-56 w-full rounded-[2rem] object-cover sm:h-72" />
+        <img src={cover} alt="" className="h-56 w-full rounded-[20px] object-cover sm:h-72" />
       ) : (
-        <div className="tile h-40 rounded-[2rem]" />
+        <div className="tile h-40 rounded-[20px]" />
       )}
     </div>
   );

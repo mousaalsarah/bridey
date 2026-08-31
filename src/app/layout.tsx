@@ -21,16 +21,21 @@ const dm = DM_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "Bridey · بنغازي",
+    default: "Bridey - Beauty Business Booking & Management",
     template: "%s · Bridey",
   },
   description:
-    "منصة حجز مواعيد خبيرات الجمال في بنغازي. شاركي رابطك على سناب شات، والعروس تحجز يومها.",
+    "Bridey helps makeup artists, hairstylists, beauty centers and salons manage bookings, teams, appointments and payments in one place.",
+  metadataBase: new URL("https://bridey.ly"),
   openGraph: {
-    title: "Bridey · موعد العروس بنقرة واحدة",
-    description: "خبيرات بنغازي · حجز من سناب شات · ١٠ د.ل فقط عند تأكيد الموعد",
+    title: "Bridey - Beauty Business Booking & Management",
+    description:
+      "Your beauty business, beautifully organized. Bookings, team, appointments and payments. 5 LYD per confirmed booking, no monthly subscription.",
     locale: "ar_LY",
+    alternateLocale: "en_US",
     type: "website",
+    siteName: "Bridey",
+    url: "https://bridey.ly",
   },
 };
 

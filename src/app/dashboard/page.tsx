@@ -2,17 +2,20 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, EmptyState, PageHeader, Skeleton, StatCard, StatusBadge } from "@/components/ui";
 import { StudioRevenuePeek } from "@/components/studio-revenue";
+import { PLATFORM_FEE_LYD } from "@/lib/constants";
 import { useLang } from "@/lib/language";
 import { useStudio, type Studio, type StudioBooking } from "@/lib/use-studio";
-import { bookingServiceNames, displayPhone, formatDate, minutesToTime, minutesUntil, sourceLabel, todayISO, whatsappLink } from "@/lib/utils";
+import { bookingServiceNames, displayPhone, formatDate, minutesToTime, minutesUntil, todayISO, whatsappLink } from "@/lib/utils";
 
 const FILTERS = ["today", "upcoming", "pending", "confirmed", "completed", "cancelled"] as const;
 
 const STATUS_KEY = {
   PENDING: "pending",
   CONFIRMED: "confirmed",
+  CHECKED_IN: "checkedIn",
+  IN_PROGRESS: "inProgress",
   DECLINED: "declined",
   CANCELLED: "cancelled",
   COMPLETED: "completed",
@@ -21,9 +24,8 @@ const STATUS_KEY = {
 } as const;
 
 export default function DashboardPage() {
-  const { lang } = useLang();
   return (
-    <Suspense fallback={<p className="text-espresso/50">{lang === "ar" ? "لحظات…" : "Loading…"}</p>}>
+    <Suspense fallback={<DashboardSkeleton />}>
       <DashboardHome />
     </Suspense>
   );
@@ -40,7 +42,7 @@ function DashboardHome() {
   const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (data && !data.artist.onboardingComplete) router.replace("/onboarding");
+    if (data && !data.artist.onboardingComplete && data.permissions?.canManageBusiness !== false) router.replace("/onboarding");
   }, [data, router]);
 
   useEffect(() => {
@@ -59,14 +61,24 @@ function DashboardHome() {
   const today = todayISO();
   const bookings = data?.bookings || [];
 
+  const live = ["PENDING", "CONFIRMED", "CHECKED_IN", "IN_PROGRESS"];
+  const hour = Number(
+    new Date().toLocaleString("en-GB", { timeZone: "Africa/Tripoli", hour: "numeric", hour12: false }),
+  );
+  const greet = hour < 12 ? t.greetingMorning : hour < 17 ? t.greetingAfternoon : t.greetingEvening;
+  const firstName = (data?.artist.name || "").trim().split(/\s+/)[0] || "";
   const counts = useMemo(
     () => ({
-      today: bookings.filter((b) => b.date === today && (b.status === "PENDING" || b.status === "CONFIRMED")).length,
-      upcoming: bookings.filter((b) => b.date >= today && (b.status === "PENDING" || b.status === "CONFIRMED")).length,
+      today: bookings.filter((b) => b.date === today && live.includes(b.status)).length,
+      upcoming: bookings.filter((b) => b.date >= today && live.includes(b.status)).length,
       pending: bookings.filter((b) => b.status === "PENDING").length,
-      confirmed: bookings.filter((b) => b.status === "CONFIRMED").length,
+      confirmed: bookings.filter((b) => ["CONFIRMED", "CHECKED_IN", "IN_PROGRESS"].includes(b.status)).length,
       completed: bookings.filter((b) => b.status === "COMPLETED").length,
       cancelled: bookings.filter((b) => b.status === "CANCELLED" || b.status === "DECLINED" || b.status === "EXPIRED" || b.status === "NO_SHOW").length,
+      todayAll: bookings.filter((b) => b.date === today && b.status !== "DECLINED" && b.status !== "EXPIRED").length,
+      todayConfirmed: bookings.filter((b) => b.date === today && ["CONFIRMED", "CHECKED_IN", "IN_PROGRESS"].includes(b.status)).length,
+      todayPending: bookings.filter((b) => b.date === today && b.status === "PENDING").length,
+      todayCompleted: bookings.filter((b) => b.date === today && b.status === "COMPLETED").length,
     }),
     [bookings, today],
   );
@@ -95,16 +107,16 @@ function DashboardHome() {
   }
 
   const visible = bookings.filter((b) => {
-    if (filter === "today") return b.date === today && (b.status === "PENDING" || b.status === "CONFIRMED");
-    if (filter === "upcoming") return b.date >= today && (b.status === "PENDING" || b.status === "CONFIRMED");
+    if (filter === "today") return b.date === today && ["PENDING", "CONFIRMED", "CHECKED_IN", "IN_PROGRESS"].includes(b.status);
+    if (filter === "upcoming") return b.date >= today && ["PENDING", "CONFIRMED", "CHECKED_IN", "IN_PROGRESS"].includes(b.status);
     if (filter === "pending") return b.status === "PENDING";
-    if (filter === "confirmed") return b.status === "CONFIRMED";
+    if (filter === "confirmed") return ["CONFIRMED", "CHECKED_IN", "IN_PROGRESS"].includes(b.status);
     if (filter === "completed") return b.status === "COMPLETED";
     return ["CANCELLED", "DECLINED", "EXPIRED", "NO_SHOW"].includes(b.status);
   });
 
   if (loading || !data) {
-    return <p className="text-espresso/50">{error === "NETWORK" ? t.networkError : lang === "ar" ? "لحظات…" : "Loading…"}</p>;
+    return error === "NETWORK" ? <p className="text-error">{t.networkError}</p> : <DashboardSkeleton />;
   }
 
   async function setStatus(id: string, status: string) {
@@ -134,111 +146,118 @@ function DashboardHome() {
   return (
     <div className="space-y-6">
       {data.artist.isDemo ? (
-        <p className="rounded-2xl bg-rose/70 px-4 py-2 text-sm text-espresso/80">{t.demoBanner}</p>
+        <p className="rounded-xl bg-rose px-4 py-2.5 text-sm text-espresso/80">{t.demoBanner}</p>
       ) : null}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs tracking-[0.25em] text-gold uppercase">{data.artist.name}</p>
-          <h1 className="font-display text-4xl">{t.dashboard}</h1>
-        </div>
-        <div className="text-end">
-          {data.billing?.account.canCreateBookings !== false ? (
-            <>
+
+      <PageHeader
+        eyebrow={data.business?.name || data.artist.name}
+        title={`${greet}${firstName ? (lang === "ar" ? `، ${firstName}` : `, ${firstName}`) : ""}`}
+        body={t.todayOverview}
+        actions={
+          <>
+            <Button href="/dashboard/scan" variant="dark">
+              {t.scanPass}
+            </Button>
+            {data.permissions?.canManageBusiness !== false && data.billing?.account.canCreateBookings !== false ? (
               <Button href="/dashboard/new" variant="gold">
                 {t.addAppointment}
               </Button>
-              <p className="mt-2 max-w-xs text-xs text-espresso/45">{t.manualFeeHint}</p>
-            </>
-          ) : (
-            <p className="max-w-xs text-sm text-espresso/70">{t.billingPaused}</p>
-          )}
-        </div>
-      </div>
+            ) : null}
+          </>
+        }
+      />
+      {data.permissions?.canManageBusiness !== false && data.billing?.account.canCreateBookings !== false ? (
+        <p className="-mt-3 text-xs text-taupe">{t.manualFeeHint}</p>
+      ) : data.billing && !data.billing.account.canCreateBookings ? (
+        <p className="-mt-3 text-sm text-espresso/70">{t.billingPaused}</p>
+      ) : null}
 
-      <StudioRevenuePeek bookings={data.bookings} fees={data.fees} />
+      {data.permissions?.canViewFees !== false ? <StudioRevenuePeek bookings={data.bookings} fees={data.fees} /> : null}
 
-      {data.billing ? <FeeCard billing={data.billing} /> : null}
+      {data.permissions?.canViewFees !== false && data.billing ? <FeeCard billing={data.billing} /> : null}
 
       {counts.pending > 0 ? (
         <button
           type="button"
           onClick={() => chooseFilter("pending")}
-          className={`w-full rounded-3xl px-5 py-4 text-start shadow-gold ${
-            filter === "pending" ? "bg-espresso text-ivory" : "alert-banner bg-espresso text-ivory"
-          }`}
+          className="w-full rounded-2xl border border-blush/35 bg-rose/70 px-5 py-4 text-start shadow-soft"
           aria-live="polite"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs tracking-[0.2em] text-gold uppercase">{t.pending}</p>
-              <p className="mt-1 font-display text-2xl">{t.pendingNow}</p>
-              <p className="mt-1 text-sm text-ivory/75">{t.pendingNowBody}</p>
-              {pendingNames ? <p className="mt-2 text-sm text-gold">{pendingNames}</p> : null}
+              <p className="text-xs font-medium tracking-[0.16em] text-blush uppercase">{t.bookingRequests}</p>
+              <p className="mt-1 font-display text-2xl text-espresso">{t.pendingNow}</p>
+              <p className="mt-1 text-sm text-espresso/70">
+                {counts.pending} {t.requestsWaiting}
+              </p>
+              {pendingNames ? <p className="mt-2 text-sm text-espresso/80">{pendingNames}</p> : null}
             </div>
-            <span className="alert-pulse grid h-14 min-w-14 place-items-center rounded-full bg-gold px-3 font-display text-3xl text-espresso">
+            <span className="grid h-12 min-w-12 place-items-center rounded-xl bg-white px-3 font-display text-2xl text-espresso">
               {counts.pending}
             </span>
           </div>
-          {filter !== "pending" ? <p className="mt-3 text-sm text-gold">{t.seePending}</p> : null}
         </button>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Stat
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label={t.todaysBookings} value={counts.todayAll} onClick={() => chooseFilter("today")} />
+        <StatCard label={t.confirmed} value={counts.todayConfirmed} onClick={() => chooseFilter("confirmed")} />
+        <StatCard
           label={t.pending}
-          value={counts.pending}
-          alert={counts.pending > 0}
+          value={counts.todayPending}
+          tone={counts.pending > 0 ? "warning" : "default"}
           onClick={() => chooseFilter("pending")}
         />
-        <Stat label={t.today} value={counts.today} onClick={() => chooseFilter("today")} />
-        <Stat label={t.outstanding} value={`${data.outstanding} ${t.lyd}`} />
+        <StatCard label={t.completed} value={counts.todayCompleted} onClick={() => chooseFilter("completed")} />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {FILTERS.map((key) => {
-          const waiting = key === "pending" && counts.pending > 0;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => chooseFilter(key)}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${
-                filter === key
-                  ? waiting
-                    ? "bg-gold text-espresso"
-                    : "bg-espresso text-ivory"
-                  : waiting
-                    ? "bg-gold/30 text-espresso"
-                    : "bg-white/70 text-espresso/70"
-              }`}
-            >
-              {t[key]}
-              <span
-                className={`ms-1 inline-flex min-w-5 justify-center rounded-full px-1.5 text-xs ${
-                  waiting ? "alert-pulse bg-espresso text-ivory" : filter === key ? "text-ivory/80" : "text-espresso/50"
+      <div>
+        <p className="mb-3 text-sm font-medium text-espresso/70">{t.todaySchedule}</p>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {FILTERS.map((key) => {
+            const waiting = key === "pending" && counts.pending > 0;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => chooseFilter(key)}
+                className={`min-h-9 shrink-0 rounded-xl px-3 py-1.5 text-sm transition ${
+                  filter === key
+                    ? waiting
+                      ? "bg-blush text-espresso"
+                      : "bg-espresso text-ivory"
+                    : waiting
+                      ? "bg-warning/15 text-espresso"
+                      : "bg-white text-espresso/70"
                 }`}
               >
-                {counts[key]}
-              </span>
-            </button>
-          );
-        })}
+                {t[key]}
+                <span className={`ms-1 inline-flex min-w-5 justify-center rounded-full px-1.5 text-xs ${filter === key ? "text-ivory/80" : "text-taupe"}`}>
+                  {counts[key]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {visible.length === 0 ? (
-        <Card>
-          <p className="text-espresso/60">{t.emptyBookings}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button href="/dashboard/share" variant="gold">
-              {t.share}
-            </Button>
-            {data.billing?.account.canCreateBookings !== false ? (
-              <Button href="/dashboard/new" variant="ghost">
-                {t.addAppointment}
+        <EmptyState
+          title={t.emptyBookingsTitle}
+          body={t.emptyBookingsBody}
+          action={
+            <>
+              <Button href="/dashboard/share" variant="gold">
+                {t.shareBookingLink}
               </Button>
-            ) : null}
-          </div>
-        </Card>
+              {data.permissions?.canManageBusiness !== false && data.billing?.account.canCreateBookings !== false ? (
+                <Button href="/dashboard/new" variant="ghost">
+                  {t.addAppointment}
+                </Button>
+              ) : null}
+            </>
+          }
+        />
       ) : (
         visible.map((b) => (
           <BookingCard
@@ -248,6 +267,20 @@ function DashboardHome() {
             onNote={(value) => setNoteDraft((d) => ({ ...d, [b.id]: value }))}
             onSaveNote={() => saveNote(b.id)}
             onStatus={(status) => setStatus(b.id, status)}
+            members={(data.members || []).filter((row) => row.status === "ACTIVE")}
+            canAssign={Boolean(data.permissions?.canAssign)}
+            onAssign={async (assignments) => {
+              const res = await fetch(`/api/bookings/${b.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ assignments }),
+              });
+              if (!res.ok) {
+                alert(t.slotTaken);
+                return;
+              }
+              reload();
+            }}
           />
         ))
       )}
@@ -261,77 +294,170 @@ function BookingCard({
   onNote,
   onSaveNote,
   onStatus,
+  members,
+  canAssign,
+  onAssign,
 }: {
   booking: StudioBooking;
   note: string;
   onNote: (value: string) => void;
   onSaveNote: () => void;
-  onStatus: (status: string) => void;
+  onStatus: (status: string) => void | Promise<void>;
+  members: Array<{ id: string; name: string; serviceIds: string[] }>;
+  canAssign: boolean;
+  onAssign: (assignments: Array<{ serviceId: string; teamMemberId: string }>) => void;
 }) {
   const { t, lang } = useLang();
+  const [askConfirm, setAskConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
   const statusLabel = t[STATUS_KEY[b.status as keyof typeof STATUS_KEY] ?? "pending"];
+  const publicPending = b.origin === "public" && b.status === "PENDING";
+  const timeLabel = b.shift
+    ? lang === "ar"
+      ? b.shift.nameAr
+      : b.shift.nameEn
+    : minutesToTime(b.startMin, lang);
+  const totalLyd = (b.items?.length ? b.items : [b.service]).reduce((sum, item) => sum + (item?.priceLyd || 0), 0);
+  const paidLyd = b.paidLyd || 0;
+  const remainingLyd = Math.max(0, totalLyd - paidLyd);
+
+  async function runStatus(status: string) {
+    setBusy(true);
+    setAskConfirm(false);
+    try {
+      await onStatus(status);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
-    <Card className={b.status === "PENDING" ? "ring-2 ring-gold bg-gold/10" : undefined}>
+    <Card className={b.status === "PENDING" ? "border-blush/40 bg-rose/40" : undefined}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap gap-2">
-            <span className={`rounded-full px-2 py-0.5 text-xs ${b.origin === "public" ? "bg-gold/80" : "bg-rose"}`}>
-              {b.origin === "public" ? t.brideyBooking : t.manualBooking}
-            </span>
-            <span className="rounded-full bg-ivory px-2 py-0.5 text-xs">{sourceLabel(b.source, lang)}</span>
-            <span className={`rounded-full px-2 py-0.5 text-xs ${b.status === "PENDING" ? "bg-espresso text-ivory" : "bg-ivory"}`}>
-              {statusLabel}
-            </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium text-espresso/70">{timeLabel}</p>
+            <StatusBadge status={b.status} label={statusLabel} />
           </div>
-          <p className="mt-2 font-display text-xl">{b.brideName}</p>
-          <p className="text-sm text-espresso/60">
-            {bookingServiceNames(b, lang)} · {formatDate(b.date, lang)} · {minutesToTime(b.startMin, lang)} – {minutesToTime(b.endMin, lang)}
-          </p>
+          <p className="mt-3 font-display text-2xl text-espresso">{b.brideName}</p>
+          <p className="mt-1 text-sm text-espresso/65">{bookingServiceNames(b, lang)}</p>
+          <p className="text-sm text-taupe">{formatDate(b.date, lang)}</p>
+          {b.assignments?.length ? (
+            <p className="mt-2 text-sm text-espresso/60">
+              {b.assignments.map((row) => row.teamMember.name).filter((name, i, all) => all.indexOf(name) === i).join(" · ")}
+            </p>
+          ) : null}
+          {totalLyd > 0 && ["CONFIRMED", "CHECKED_IN", "IN_PROGRESS", "COMPLETED"].includes(b.status) ? (
+            <p className={`mt-2 text-sm ${remainingLyd > 0 ? "font-medium text-espresso" : "text-success"}`}>
+              {remainingLyd > 0 ? `${remainingLyd} ${t.lyd} ${t.remaining}` : t.paidInFull}
+            </p>
+          ) : null}
+          {canAssign && members.length > 1 && (b.status === "PENDING" || b.status === "CONFIRMED") ? (
+            <div className="mt-3 space-y-2">
+              {(b.items?.length ? b.items : [{ serviceId: b.service?.id, nameAr: b.service.nameAr, nameEn: b.service.nameEn }]).map((item) => {
+                const serviceId = item.serviceId || b.assignments?.find((row) => row.serviceId)?.serviceId;
+                if (!serviceId) return null;
+                const current = b.assignments?.find((row) => row.serviceId === serviceId)?.teamMemberId || "";
+                const options = members.filter((member) => member.serviceIds.includes(serviceId) || member.id === current);
+                return (
+                  <label key={serviceId} className="block text-xs text-espresso/60">
+                    {lang === "ar" ? item.nameAr : item.nameEn}
+                    <select
+                      className="mt-1 w-full rounded-xl border border-champagne/40 bg-white px-3 py-2 text-sm text-espresso"
+                      value={current}
+                      onChange={(e) => {
+                        const next = (b.assignments || []).map((row) => ({
+                          serviceId: row.serviceId,
+                          teamMemberId: row.serviceId === serviceId ? e.target.value : row.teamMemberId,
+                        }));
+                        if (!next.some((row) => row.serviceId === serviceId)) {
+                          next.push({ serviceId, teamMemberId: e.target.value });
+                        }
+                        onAssign(next);
+                      }}
+                    >
+                      {options.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                );
+              })}
+            </div>
+          ) : null}
           {b.trackCode ? (
-            <p className="mt-1 font-mono text-xs tracking-widest text-gold" dir="ltr">
+            <p className="mt-2 font-mono text-xs tracking-widest text-taupe" dir="ltr">
               {b.trackCode}
             </p>
           ) : null}
-          <p className="mt-1 text-sm" dir="ltr">
-            {displayPhone(b.bridePhone)}
-          </p>
+          {b.bridePhone ? (
+            <p className="mt-1 text-sm" dir="ltr">
+              {displayPhone(b.bridePhone)}
+            </p>
+          ) : publicPending ? (
+            <p className="mt-2 text-xs text-taupe">{t.phoneHiddenUntilConfirm}</p>
+          ) : null}
+          {b.status === "CONFIRMED" && b.contactAvailable ? (
+            <p className="mt-2 text-xs text-success">{t.contactNowAvailable}</p>
+          ) : null}
           {b.notes ? <p className="mt-2 text-sm text-espresso/55">{b.notes}</p> : null}
-          {b.origin === "public" && b.status === "PENDING" ? <p className="mt-2 text-xs text-gold">{t.feeOnConfirm}</p> : null}
+          {publicPending ? <p className="mt-2 text-xs text-taupe">{t.feeOnConfirm}</p> : null}
           {b.status === "PENDING" ? <HoldCountdown expiresAt={b.expiresAt} /> : null}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           {b.status === "PENDING" ? (
             <>
-              <Button variant="gold" onClick={() => onStatus("CONFIRMED")}>
-                {t.confirm}
+              <Button variant="gold" disabled={busy} loading={busy} onClick={() => setAskConfirm(true)}>
+                {publicPending ? `${t.confirm} — ${PLATFORM_FEE_LYD} ${t.lyd}` : t.confirm}
               </Button>
-              <Button variant="ghost" onClick={() => onStatus("DECLINED")}>
+              <Button variant="danger" disabled={busy} loading={busy} onClick={() => runStatus("DECLINED")}>
                 {t.decline}
               </Button>
             </>
           ) : null}
-          {b.status === "CONFIRMED" ? (
+          {["CONFIRMED", "CHECKED_IN", "IN_PROGRESS", "COMPLETED"].includes(b.status) ? (
             <>
-              <Button variant="dark" onClick={() => onStatus("COMPLETED")}>
-                {t.completed}
+              <Button href={`/dashboard/appointments/${b.id}`} variant="dark">
+                {t.openAppointment}
               </Button>
-              <Button variant="ghost" onClick={() => onStatus("NO_SHOW")}>
-                {t.noShow}
-              </Button>
-              <Button variant="ghost" onClick={() => onStatus("CANCELLED")}>
-                {t.cancelBooking}
-              </Button>
+              {b.status === "CONFIRMED" ? (
+                <Button variant="ghost" disabled={busy} onClick={() => runStatus("NO_SHOW")}>
+                  {t.noShow}
+                </Button>
+              ) : null}
+              {["CONFIRMED", "CHECKED_IN", "IN_PROGRESS"].includes(b.status) ? (
+                <Button variant="ghost" disabled={busy} onClick={() => runStatus("CANCELLED")}>
+                  {t.cancelBooking}
+                </Button>
+              ) : null}
             </>
           ) : null}
-          <Button href={whatsappLink(b.bridePhone)} variant="rose">
-            {t.whatsapp}
-          </Button>
+          {b.bridePhone ? (
+            <Button href={whatsappLink(b.bridePhone)} variant="rose">
+              {t.contactBride}
+            </Button>
+          ) : null}
         </div>
       </div>
+      {askConfirm ? (
+        <div className="mt-4 rounded-2xl bg-ivory px-4 py-4">
+          <p className="font-display text-xl">{t.confirmDialogTitle}</p>
+          <p className="mt-2 text-sm text-espresso/70">{t.confirmDialogBody}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="ghost" disabled={busy} onClick={() => setAskConfirm(false)}>
+              {t.confirmDialogCancel}
+            </Button>
+            <Button variant="gold" disabled={busy} loading={busy} onClick={() => runStatus("CONFIRMED")}>
+              {publicPending ? `${t.confirm} — ${PLATFORM_FEE_LYD} ${t.lyd}` : t.confirm}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <div className="mt-4 space-y-2">
         <textarea
-          className="w-full rounded-2xl border border-champagne/40 bg-white/80 px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-champagne/40 bg-white px-3 py-2 text-sm outline-none focus:border-blush focus:ring-2 focus:ring-blush/20"
           placeholder={t.artistNotes}
           value={note}
           onChange={(e) => onNote(e.target.value)}
@@ -354,14 +480,14 @@ function HoldCountdown({ expiresAt }: { expiresAt: string | null }) {
   }, [expiresAt]);
   const mins = expiresAt ? minutesUntil(expiresAt) : null;
   return (
-    <div className="mt-3 rounded-2xl bg-espresso px-3 py-2 text-ivory">
-      <p className="text-xs tracking-[0.2em] text-gold uppercase">{t.waitingConfirm}</p>
+    <div className="mt-3 rounded-xl bg-rose px-3 py-2">
+      <p className="text-xs font-medium tracking-[0.16em] text-blush uppercase">{t.waitingConfirm}</p>
       {mins == null ? null : mins > 0 ? (
         <p className="mt-1 text-sm">
           {t.responseDeadline}: {mins} {t.minutesRemaining}
         </p>
       ) : (
-        <p className="mt-1 text-sm text-gold">{t.holdReleased}</p>
+        <p className="mt-1 text-sm text-warning">{t.holdReleased}</p>
       )}
     </div>
   );
@@ -374,7 +500,7 @@ function FeeCard({ billing }: { billing: NonNullable<Studio["billing"]> }) {
   if (status === "ACTIVE" && amount <= 0) {
     return (
       <Card>
-        <p className="text-xs tracking-[0.2em] text-gold uppercase">{t.earnings}</p>
+        <p className="text-xs font-medium tracking-[0.16em] text-blush uppercase">{t.earnings}</p>
         <p className="mt-1 font-display text-2xl">{t.billingActive}</p>
         <Button href="/dashboard/earnings" variant="ghost" className="mt-3">
           {t.viewSubscription}
@@ -385,9 +511,9 @@ function FeeCard({ billing }: { billing: NonNullable<Studio["billing"]> }) {
   return (
     <Card>
       {billing.notices[0] ? (
-        <p className="mb-3 text-sm text-gold">{lang === "ar" ? billing.notices[0].bodyAr : billing.notices[0].bodyEn}</p>
+        <p className="mb-3 text-sm text-espresso/70">{lang === "ar" ? billing.notices[0].bodyAr : billing.notices[0].bodyEn}</p>
       ) : null}
-      <p className="text-xs tracking-[0.2em] text-gold uppercase">{t.earnings}</p>
+      <p className="text-xs font-medium tracking-[0.16em] text-blush uppercase">{t.earnings}</p>
       {status === "ACTIVE" ? (
         <>
           <p className="mt-1 font-display text-2xl">{amount} {t.lyd}</p>
@@ -442,27 +568,19 @@ function FeeCard({ billing }: { billing: NonNullable<Studio["billing"]> }) {
   );
 }
 
-function Stat({
-  label,
-  value,
-  alert,
-  onClick,
-}: {
-  label: string;
-  value: string | number;
-  alert?: boolean;
-  onClick?: () => void;
-}) {
-  const body = (
-    <Card className={alert ? "bg-gold/20 ring-2 ring-gold" : undefined}>
-      <p className="text-xs text-espresso/50">{label}</p>
-      <p className={`mt-1 font-display text-3xl ${alert ? "text-espresso" : ""}`}>{value}</p>
-    </Card>
-  );
-  if (!onClick) return body;
+function DashboardSkeleton() {
   return (
-    <button type="button" onClick={onClick} className="text-start">
-      {body}
-    </button>
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-4 w-72" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Skeleton className="h-24" />
+        <Skeleton className="h-24" />
+        <Skeleton className="h-24" />
+        <Skeleton className="h-24" />
+      </div>
+      <Skeleton className="h-36" />
+      <Skeleton className="h-36" />
+    </div>
   );
 }

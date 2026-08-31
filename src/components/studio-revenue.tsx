@@ -12,30 +12,30 @@ export function StudioRevenuePeek({ bookings, fees }: { bookings: StudioBooking[
   const current = studioMonthStats(bookings, fees, month);
 
   return (
-    <Card className="bg-espresso text-ivory">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <Card>
+      <div className="flex flex-wrap items-start justify-between gap-5">
         <div>
-          <p className="text-xs tracking-[0.2em] text-gold uppercase">{t.studioRevenue}</p>
-          <p className="mt-1 font-display text-3xl">
+          <p className="text-xs font-medium tracking-[0.16em] text-blush uppercase">{t.studioRevenue}</p>
+          <p className="mt-1 font-display text-3xl font-semibold text-espresso">
             {current.revenueLyd} {t.lyd}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
           <div>
-            <p className="text-ivory/50">{t.brideyCount}</p>
-            <p className="font-display text-2xl text-gold">{current.brideyCount}</p>
+            <p className="font-medium text-espresso">{t.brideyCount}</p>
+            <p className="font-display text-2xl text-espresso">{current.brideyCount}</p>
           </div>
           <div>
-            <p className="text-ivory/50">{t.manualCount}</p>
-            <p className="font-display text-2xl">{current.manualCount}</p>
+            <p className="font-medium text-espresso">{t.manualCount}</p>
+            <p className="font-display text-2xl text-espresso">{current.manualCount}</p>
           </div>
           <div>
-            <p className="text-ivory/50">{t.netAfterFees}</p>
-            <p className="font-display text-xl">{current.netLyd}</p>
+            <p className="font-medium text-espresso">{t.netAfterFees}</p>
+            <p className="font-display text-xl text-espresso">{current.netLyd}</p>
           </div>
           <div>
-            <p className="text-ivory/50">{t.avgTicket}</p>
-            <p className="font-display text-xl">{current.avgTicketLyd}</p>
+            <p className="font-medium text-espresso">{t.avgTicket}</p>
+            <p className="font-display text-xl text-espresso">{current.avgTicketLyd}</p>
           </div>
         </div>
       </div>

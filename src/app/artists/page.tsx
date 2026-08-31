@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Brand, Button, LangToggle } from "@/components/ui";
+import { Brand, LangToggle } from "@/components/ui";
 import { useLang } from "@/lib/language";
 import { neighborhoodLabel, specialtyLabel } from "@/lib/utils";
 
@@ -39,7 +39,7 @@ export default function ArtistsPage() {
         <p className="mt-2 text-espresso/65">{t.discoverBody}</p>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {artists.map((a) => (
-            <Link key={a.slug} href={`/a/${a.slug}`} className="overflow-hidden rounded-[1.8rem] border border-champagne/30 bg-white/70 shadow-soft">
+            <Link key={a.slug} href={`/a/${a.slug}`} className="overflow-hidden rounded-2xl border border-champagne/28 bg-white shadow-soft transition hover:shadow-lift">
               <div className="aspect-[4/3] bg-rose">
                 {a.cover ? (
                   // eslint-disable-next-line @next/next/no-img-element

@@ -55,7 +55,7 @@ export default function AdminPaymentsPage() {
             {p.reference || p.invoice.reference}
           </p>
           {p.receiptUrl ? (
-            <a href={p.receiptUrl} target="_blank" rel="noreferrer" className="text-sm text-gold">
+            <a href={p.receiptUrl} target="_blank" rel="noreferrer" className="text-sm text-blush">
               عرض الإيصال
             </a>
           ) : null}

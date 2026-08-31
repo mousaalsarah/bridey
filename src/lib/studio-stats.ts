@@ -1,6 +1,6 @@
 import { shiftMonth, todayISO } from "./utils";
 
-const EARNED = new Set(["CONFIRMED", "COMPLETED"]);
+const EARNED = new Set(["CONFIRMED", "CHECKED_IN", "IN_PROGRESS", "COMPLETED"]);
 const LOST = new Set(["DECLINED", "CANCELLED", "EXPIRED", "NO_SHOW"]);
 
 export type StatBooking = {

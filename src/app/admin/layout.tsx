@@ -29,7 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Brand href="/admin" />
           <nav className="flex gap-3 text-sm">
             {nav.map((item) => (
-              <Link key={item.href} href={item.href} className={cn(pathname === item.href ? "text-espresso" : "text-espresso/50")}>
+              <Link key={item.href} href={item.href} className={cn("rounded-xl px-3 py-1.5", pathname === item.href ? "bg-rose text-espresso" : "text-espresso/50")}>
                 {item.label}
               </Link>
             ))}

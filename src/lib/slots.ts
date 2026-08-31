@@ -19,7 +19,7 @@ export function occupySlotStarts(startMin: number, endMin: number) {
 }
 
 export function holdIsActive(booking: BusySlot, now = new Date()) {
-  if (booking.status === "CONFIRMED") return true;
+  if (booking.status === "CONFIRMED" || booking.status === "CHECKED_IN" || booking.status === "IN_PROGRESS") return true;
   if (booking.status !== "PENDING") return false;
   if (!booking.expiresAt) return true;
   return new Date(booking.expiresAt).getTime() > now.getTime();

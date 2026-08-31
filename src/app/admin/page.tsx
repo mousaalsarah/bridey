@@ -87,7 +87,7 @@ export default function AdminHomePage() {
       <div>
         <h1 className="font-display text-4xl">رسوم الحجوزات</h1>
         <p className="mt-2 text-sm text-espresso/55">
-          المبلغ = ١٠ د.ل × الحجوزات المؤكدة من صفحة برايدي. ما فيه اشتراك شهري ثابت.
+          المبلغ = ٥ د.ل × الحجوزات المؤكدة من صفحة برايدي. ما فيه اشتراك شهري ثابت.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -120,7 +120,7 @@ function RevenueAnalysis({
     <section className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs tracking-[0.2em] text-gold uppercase">تحليل الإيراد</p>
+          <p className="text-xs font-medium tracking-[0.2em] text-blush uppercase">تحليل الإيراد</p>
           <h2 className="font-display text-3xl">من تجيب لبرايدي أكثر؟</h2>
           <p className="mt-1 text-sm text-espresso/55">
             ترتيب الخبيرات حسب الرسوم اللي تولّدت من حجوزات صفحتهن في {monthLabel(data.month, "ar")}.
@@ -129,7 +129,7 @@ function RevenueAnalysis({
         <label className="text-sm text-espresso/60">
           الشهر
           <select
-            className="ms-2 rounded-full border border-champagne/40 bg-white/80 px-3 py-1.5"
+            className="ms-2 rounded-xl border border-champagne/40 bg-white px-3 py-1.5"
             value={month || data.month}
             onChange={(e) => onMonth(e.target.value)}
           >
@@ -169,7 +169,7 @@ function RevenueAnalysis({
               <p className="mt-1 text-sm text-ivory/70">
                 {data.current.topArtist.generatedLyd} د.ل · {data.current.topArtist.share}% من إيراد الشهر
               </p>
-              <Link href={`/admin/artists/${data.current.topArtist.artistId}`} className="mt-3 inline-block text-sm text-gold">
+              <Link href={`/admin/artists/${data.current.topArtist.artistId}`} className="mt-3 inline-block text-sm text-blush">
                 فتح حسابها
               </Link>
             </>
@@ -186,7 +186,7 @@ function RevenueAnalysis({
             <div key={point.month} className="text-center">
               <div className="mx-auto flex h-28 w-full max-w-[3rem] items-end justify-center gap-1">
                 <span
-                  className="w-3 rounded-t bg-gold"
+                  className="w-3 rounded-t bg-blush"
                   style={{ height: `${Math.max(6, (point.generatedLyd / maxTrend) * 100)}%` }}
                   title={`تولّد ${point.generatedLyd}`}
                 />
@@ -221,7 +221,7 @@ function RevenueAnalysis({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
-                    <span className={`grid h-8 w-8 place-items-center rounded-full text-sm ${row.rank <= 3 ? "bg-gold text-espresso" : "bg-white text-espresso/60"}`}>
+                    <span className={`grid h-8 w-8 place-items-center rounded-full text-sm ${row.rank <= 3 ? "bg-blush text-espresso" : "bg-white text-espresso/60"}`}>
                       {row.rank}
                     </span>
                     <div>
@@ -239,7 +239,7 @@ function RevenueAnalysis({
                   </div>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
-                  <div className="h-full rounded-full bg-gold" style={{ width: `${Math.max(4, (row.generatedLyd / maxArtist) * 100)}%` }} />
+                  <div className="h-full rounded-full bg-blush" style={{ width: `${Math.max(4, (row.generatedLyd / maxArtist) * 100)}%` }} />
                 </div>
               </Link>
             ))}
@@ -258,7 +258,7 @@ function Kpi({ label, value, hint, change }: { label: string; value: string; hin
       <p className="text-xs text-espresso/50">{label}</p>
       <p className="mt-1 font-display text-3xl">{value}</p>
       <p className="mt-2 text-xs text-espresso/50">{hint}</p>
-      <p className={`mt-1 text-xs ${flat ? "text-espresso/40" : up ? "text-emerald-800" : "text-red-700"}`}>
+      <p className={`mt-1 text-xs ${flat ? "text-espresso/40" : up ? "text-success" : "text-error"}`}>
         {flat ? "نفس الشهر اللي فات" : `${up ? "+" : ""}${change}% عن الشهر اللي فات`}
       </p>
     </Card>
