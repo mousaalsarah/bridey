@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentArtist } from "@/lib/auth";
 import { applyAppointmentAction, AppointmentError } from "@/lib/appointment";
-import { bookingTxOptions } from "@/lib/booking";
+import { runBookingTransaction } from "@/lib/booking";
 import { appointmentInclude, canAccessAppointment, presentAppointment } from "@/lib/bridey-pass";
 import { db } from "@/lib/db";
 import { lockBusiness, requireWorkspace } from "@/lib/workspace";
@@ -12,6 +12,8 @@ const schema = z.object({
   amountLyd: z.number().int().min(1).max(50000).optional(),
   depositLyd: z.number().int().min(0).max(50000).optional(),
 });
+
+export const maxDuration = 30;
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const artist = await getCurrentArtist();
@@ -30,7 +32,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   try {
-    const booking = await db.$transaction(async (tx) => {
+    const booking = await runBookingTransaction(async (tx) => {
       await lockBusiness(tx, workspace.business.id);
       return applyAppointmentAction(tx, {
         bookingId: id,
@@ -42,7 +44,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         amountLyd: parsed.data.amountLyd,
         depositLyd: parsed.data.depositLyd,
       });
-    }, bookingTxOptions);
+    });
     return NextResponse.json(
       presentAppointment(booking, {
         memberId: workspace.member.id,

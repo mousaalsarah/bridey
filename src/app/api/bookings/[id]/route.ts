@@ -4,13 +4,13 @@ import {
   STATUS_TRANSITIONS,
   SlotTakenError,
   TERMINAL_STATUSES,
-  bookingTxOptions,
   chargeBrideyFee,
   expireOverdue,
   hasOverlap,
   lockArtistSchedule,
   reassignBooking,
   releaseBookingHolds,
+  runBookingTransaction,
 } from "@/lib/booking";
 import { uniquePassToken, appointmentInclude, canAccessAppointment, presentAppointment } from "@/lib/bridey-pass";
 import { presentBooking } from "@/lib/booking-privacy";
@@ -18,6 +18,8 @@ import { PLATFORM_FEE_LYD } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/fees";
 import { lockBusiness, requireWorkspace, type Workspace } from "@/lib/workspace";
+
+export const maxDuration = 30;
 
 function forWorkspace<T extends Parameters<typeof presentBooking>[0]>(workspace: Workspace, booking: T) {
   return presentBooking(booking, {
@@ -68,17 +70,15 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (Array.isArray(body.assignments)) {
     if (!workspace.permissions.canAssign) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     try {
-      const updated = await db.$transaction(
-        (tx) =>
-          reassignBooking(tx, {
-            bookingId: id,
-            business: workspace.business,
-            assignments: body.assignments.map((row: { serviceId: string; teamMemberId: string }) => ({
-              serviceId: row.serviceId,
-              teamMemberId: row.teamMemberId,
-            })),
-          }),
-        bookingTxOptions,
+      const updated = await runBookingTransaction((tx) =>
+        reassignBooking(tx, {
+          bookingId: id,
+          business: workspace.business,
+          assignments: body.assignments.map((row: { serviceId: string; teamMemberId: string }) => ({
+            serviceId: row.serviceId,
+            teamMemberId: row.teamMemberId,
+          })),
+        }),
       );
       return NextResponse.json(forWorkspace(workspace, updated));
     } catch (error) {
@@ -111,7 +111,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   try {
-    const updated = await db.$transaction(async (tx) => {
+    const updated = await runBookingTransaction(async (tx) => {
       await lockBusiness(tx, workspace.business.id);
       await lockArtistSchedule(tx, workspace.business.ownerId);
       await expireOverdue(tx, workspace.business.ownerId);
@@ -185,7 +185,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         },
         include: { service: true, items: true, fee: true, assignments: true, shift: true },
       });
-    }, bookingTxOptions);
+    });
     return NextResponse.json(forWorkspace(workspace, updated));
   } catch (error) {
     if (error instanceof SlotTakenError) {

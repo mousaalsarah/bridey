@@ -1,11 +1,12 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { db } from "./db";
+import { adminSecretBytes } from "./secrets";
 
 const COOKIE = "bridey_admin";
 
 function secret() {
-  return new TextEncoder().encode(`${process.env.AUTH_SECRET || "bridey-dev-secret"}-admin`);
+  return adminSecretBytes();
 }
 
 export async function createAdminSession(adminId: string) {

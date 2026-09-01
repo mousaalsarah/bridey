@@ -5,9 +5,9 @@ import {
   CapacityFullError,
   PreferredUnavailableError,
   SlotTakenError,
-  bookingTxOptions,
   createBusinessBooking,
   isUniqueConstraint,
+  runBookingTransaction,
 } from "@/lib/booking";
 import { FeeError } from "@/lib/fees";
 import { normalizeBookingSource } from "@/lib/constants";
@@ -32,6 +32,8 @@ const schema = z.object({
   artistNotes: z.string().max(500).optional().default(""),
   source: z.string(),
 });
+
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const artist = await getCurrentArtist();
@@ -64,28 +66,26 @@ export async function POST(req: Request) {
         : undefined;
 
   try {
-    const booking = await db.$transaction(
-      (tx) =>
-        createBusinessBooking(tx, {
-          business: workspace.business,
-          services,
-          date: parsed.data.date,
-          shiftId: parsed.data.shiftId,
-          startMin,
-          endMin,
-          preferredMemberId: parsed.data.preferredMemberId,
-          preferredByService: parsed.data.preferredByService,
-          assignments: parsed.data.assignments,
-          brideName: parsed.data.brideName.trim(),
-          bridePhone: phone,
-          notes: parsed.data.notes,
-          artistNotes: parsed.data.artistNotes,
-          origin: "manual",
-          source,
-          status: "CONFIRMED",
-          expiresAt: null,
-        }),
-      bookingTxOptions,
+    const booking = await runBookingTransaction((tx) =>
+      createBusinessBooking(tx, {
+        business: workspace.business,
+        services,
+        date: parsed.data.date,
+        shiftId: parsed.data.shiftId,
+        startMin,
+        endMin,
+        preferredMemberId: parsed.data.preferredMemberId,
+        preferredByService: parsed.data.preferredByService,
+        assignments: parsed.data.assignments,
+        brideName: parsed.data.brideName.trim(),
+        bridePhone: phone,
+        notes: parsed.data.notes,
+        artistNotes: parsed.data.artistNotes,
+        origin: "manual",
+        source,
+        status: "CONFIRMED",
+        expiresAt: null,
+      }),
     );
     return NextResponse.json(
       presentBooking(booking, {

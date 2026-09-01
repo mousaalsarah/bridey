@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { appUrl } from "@/lib/utils";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
   },
   description:
     "Bridey helps makeup artists, hairstylists, beauty centers and salons manage bookings, teams, appointments and payments in one place.",
-  metadataBase: new URL("https://bridey.ly"),
+  metadataBase: new URL(appUrl()),
   openGraph: {
     title: "Bridey - Beauty Business Booking & Management",
     description:
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
     alternateLocale: "en_US",
     type: "website",
     siteName: "Bridey",
-    url: "https://bridey.ly",
+    url: appUrl(),
   },
 };
 

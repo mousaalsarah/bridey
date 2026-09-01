@@ -3,6 +3,11 @@ import bcrypt from "bcryptjs";
 import { deriveShiftsFromWindow } from "../src/lib/shifts";
 import { ensureWorkspace } from "../src/lib/workspace";
 
+if (process.env.ALLOW_DEMO_SEED !== "1" && (process.env.VERCEL === "1" || process.env.NODE_ENV === "production")) {
+  console.error("Refusing to seed outside local development. Set ALLOW_DEMO_SEED=1 to override.");
+  process.exit(1);
+}
+
 const db = new PrismaClient();
 
 function trackCode(seed: string) {

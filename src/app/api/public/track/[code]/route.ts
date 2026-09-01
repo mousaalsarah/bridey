@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { expireOverdue, normalizeTrackCode, bookingTxOptions } from "@/lib/booking";
+import { expireOverdue, normalizeTrackCode, runBookingTransaction } from "@/lib/booking";
 import { ensurePassToken, passIsAvailable } from "@/lib/bridey-pass";
 import { db } from "@/lib/db";
 
@@ -29,7 +29,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ code: string }
 
   if (!booking.brideyPassToken && booking.confirmedAt && !["PENDING", "DECLINED", "EXPIRED"].includes(booking.status)) {
     const current = booking;
-    await db.$transaction((tx) => ensurePassToken(tx, current), bookingTxOptions);
+    await runBookingTransaction((tx) => ensurePassToken(tx, current));
     const fresh = await db.booking.findUnique({
       where: { trackCode },
       include: {

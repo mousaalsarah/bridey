@@ -4,13 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build",
+    "build": "node scripts/prisma-generate.mjs && node scripts/prisma-migrate-deploy.mjs && next build",
     "start": "next start",
     "lint": "eslint",
-    "db:push": "prisma db push",
+    "postinstall": "node scripts/prisma-generate.mjs",
+    "db:push": "prisma db push --schema prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio",
-    "setup": "prisma generate && prisma db push && tsx prisma/seed.ts"
+    "db:studio": "prisma studio --schema prisma/schema.prisma",
+    "db:sync-postgres": "node scripts/sync-postgres-schema.mjs",
+    "db:bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
+    "setup": "prisma generate --schema prisma/schema.prisma && prisma db push --schema prisma/schema.prisma && tsx prisma/seed.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

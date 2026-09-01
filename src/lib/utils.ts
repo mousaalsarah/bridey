@@ -166,7 +166,14 @@ export function formatClock(iso: string | Date | null | undefined, lang: "ar" | 
 }
 
 export function appUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+  const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
+  if (explicit) return explicit;
+  const vercel = process.env.VERCEL_URL?.trim().replace(/^https?:\/\//, "");
+  if (vercel) return `https://${vercel}`;
+  return "http://localhost:3000";
 }
 
 export function artistUrl(slug: string) {

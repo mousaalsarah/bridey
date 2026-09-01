@@ -5,11 +5,11 @@ import {
   NotesContactError,
   PreferredUnavailableError,
   SlotTakenError,
-  bookingTxOptions,
   createBusinessBooking,
   holdExpiresAt,
   isUniqueConstraint,
   uniqueTrackCode,
+  runBookingTransaction,
 } from "@/lib/booking";
 import { notesContainContact } from "@/lib/booking-privacy";
 import { FeeError } from "@/lib/fees";
@@ -30,6 +30,8 @@ const schema = z.object({
   notes: z.string().max(500).optional().default(""),
   requestId: z.string().uuid().optional(),
 });
+
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
@@ -76,7 +78,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const booking = await db.$transaction(async (tx) => {
+    const booking = await runBookingTransaction(async (tx) => {
       const trackCode = await uniqueTrackCode(tx);
       return createBusinessBooking(tx, {
         business,
@@ -96,7 +98,7 @@ export async function POST(req: Request) {
         requestId: parsed.data.requestId,
         trackCode,
       });
-    }, bookingTxOptions);
+    });
 
     return NextResponse.json({ id: booking.id, trackCode: booking.trackCode });
   } catch (error) {

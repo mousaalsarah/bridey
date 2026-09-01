@@ -1,7 +1,7 @@
 import { randomInt } from "crypto";
 import { Prisma } from "@prisma/client";
 import { CapacityFullError, assignStaff, claimCapacitySeats, releaseCapacityHolds, staffSnapshots, type ServiceAssignment } from "./capacity";
-import { SlotTakenError, isUniqueConstraint } from "./booking-errors";
+import { SlotTakenError, isRetryableTxError, isUniqueConstraint } from "./booking-errors";
 import { NotesContactError, notesContainContact } from "./booking-privacy";
 import { uniquePassToken } from "./bridey-pass";
 import { BLOCKING_STATUSES, BOOKING_REQUEST_TIMEOUT_MINUTES, PLATFORM_FEE_LYD } from "./constants";
@@ -11,7 +11,7 @@ import { occupySlotStarts } from "./slots";
 import { todayISO, weekdayOf } from "./utils";
 import { lockBusiness, lockTeamMembers, loadBusiness, type LoadedBusiness } from "./workspace";
 
-export { SlotTakenError, isUniqueConstraint } from "./booking-errors";
+export { SlotTakenError, isRetryableTxError, isUniqueConstraint } from "./booking-errors";
 export { CapacityFullError, PreferredUnavailableError } from "./capacity";
 export { NotesContactError } from "./booking-privacy";
 
@@ -58,6 +58,22 @@ export const bookingTxOptions = {
   timeout: 15000,
   maxWait: 10000,
 } as const;
+
+const BOOKING_TX_ATTEMPTS = 4;
+
+export async function runBookingTransaction<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  let last: unknown;
+  for (let attempt = 0; attempt < BOOKING_TX_ATTEMPTS; attempt += 1) {
+    try {
+      return await db.$transaction(fn, bookingTxOptions);
+    } catch (error) {
+      last = error;
+      if (!isRetryableTxError(error) || attempt === BOOKING_TX_ATTEMPTS - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 40 * (attempt + 1) * (attempt + 1)));
+    }
+  }
+  throw last;
+}
 
 export async function expireOverdue(tx: Tx, artistId?: string) {
   const today = todayISO();

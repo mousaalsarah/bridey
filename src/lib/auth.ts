@@ -2,11 +2,12 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { db } from "./db";
+import { authSecretBytes } from "./secrets";
 
 const COOKIE = "bridey_session";
 
 function secret() {
-  return new TextEncoder().encode(process.env.AUTH_SECRET || "bridey-dev-secret");
+  return authSecretBytes();
 }
 
 export async function hashPassword(password: string) {

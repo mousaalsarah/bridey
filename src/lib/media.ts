@@ -4,6 +4,9 @@ import path from "path";
 const ALLOWED = new Set(["jpg", "jpeg", "png", "webp"]);
 
 export async function savePublicImage(artistId: string, file: File) {
+  if (process.env.VERCEL) {
+    throw new Error("STORAGE_UNAVAILABLE");
+  }
   if (file.size > 6 * 1024 * 1024) {
     throw new Error("TOO_LARGE");
   }

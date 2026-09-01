@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { adminSecretBytes, authSecretBytes } from "@/lib/secrets";
 
 const PROTECTED = ["/dashboard", "/onboarding"];
 const ADMIN = ["/admin"];
 
 function secret() {
-  return new TextEncoder().encode(process.env.AUTH_SECRET || "bridey-dev-secret");
+  return authSecretBytes();
 }
 
 export async function middleware(req: NextRequest) {
@@ -19,7 +20,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
     try {
-      await jwtVerify(admin, new TextEncoder().encode(`${process.env.AUTH_SECRET || "bridey-dev-secret"}-admin`));
+      await jwtVerify(admin, adminSecretBytes());
       return NextResponse.next();
     } catch {
       const url = req.nextUrl.clone();

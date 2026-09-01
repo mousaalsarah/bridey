@@ -1,14 +1,29 @@
 import { NextResponse } from "next/server";
 import { appUrl } from "@/lib/utils";
 
-function allowedHost(raw: string) {
+function allowedHosts(req: Request) {
+  const hosts = new Set<string>();
+  try {
+    hosts.add(new URL(appUrl()).host);
+  } catch {
+    /* ignore invalid app url */
+  }
+  try {
+    hosts.add(new URL(req.url).host);
+  } catch {
+    /* ignore */
+  }
+  const vercel = process.env.VERCEL_URL?.trim().replace(/^https?:\/\//, "");
+  if (vercel) hosts.add(vercel);
+  return hosts;
+}
+
+function allowedUrl(raw: string, req: Request) {
   try {
     const target = new URL(raw);
-    const app = new URL(appUrl());
-    return (
-      (target.protocol === "http:" || target.protocol === "https:") &&
-      (target.host === app.host || target.hostname === "localhost" || target.hostname === "127.0.0.1")
-    );
+    if (target.protocol !== "http:" && target.protocol !== "https:") return false;
+    if (target.hostname === "localhost" || target.hostname === "127.0.0.1") return true;
+    return allowedHosts(req).has(target.host);
   } catch {
     return false;
   }
@@ -16,7 +31,7 @@ function allowedHost(raw: string) {
 
 export async function GET(req: Request) {
   const data = new URL(req.url).searchParams.get("data") || "";
-  if (!allowedHost(data)) {
+  if (!allowedUrl(data, req)) {
     return NextResponse.json({ error: "INVALID" }, { status: 400 });
   }
 
