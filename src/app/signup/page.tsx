@@ -41,7 +41,7 @@ export default function SignupPage() {
         <LangToggle />
       </header>
       <main className="mx-auto w-full max-w-md flex-1 px-5 pb-16">
-        <h1 className="font-display text-4xl text-espresso">{t.signupTitle}</h1>
+        <h1 className="font-display text-3xl text-espresso sm:text-4xl">{t.signupTitle}</h1>
         <p className="mt-2 text-espresso/60">{t.signupHint}</p>
         <form onSubmit={submit} className="mt-8 space-y-4">
           <Card className="space-y-4 p-6">

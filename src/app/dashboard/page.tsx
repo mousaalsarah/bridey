@@ -155,11 +155,11 @@ function DashboardHome() {
         body={t.todayOverview}
         actions={
           <>
-            <Button href="/dashboard/scan" variant="dark">
+            <Button href="/dashboard/scan" variant="dark" className="flex-1 sm:flex-none">
               {t.scanPass}
             </Button>
             {data.permissions?.canManageBusiness !== false && data.billing?.account.canCreateBookings !== false ? (
-              <Button href="/dashboard/new" variant="gold">
+              <Button href="/dashboard/new" variant="gold" className="flex-1 sm:flex-none">
                 {t.addAppointment}
               </Button>
             ) : null}
@@ -213,7 +213,7 @@ function DashboardHome() {
 
       <div>
         <p className="mb-3 text-sm font-medium text-espresso/70">{t.todaySchedule}</p>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0">
           {FILTERS.map((key) => {
             const waiting = key === "pending" && counts.pending > 0;
             return (
@@ -246,16 +246,16 @@ function DashboardHome() {
           title={t.emptyBookingsTitle}
           body={t.emptyBookingsBody}
           action={
-            <>
-              <Button href="/dashboard/share" variant="gold">
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Button href="/dashboard/share" variant="gold" className="w-full sm:w-auto">
                 {t.shareBookingLink}
               </Button>
               {data.permissions?.canManageBusiness !== false && data.billing?.account.canCreateBookings !== false ? (
-                <Button href="/dashboard/new" variant="ghost">
+                <Button href="/dashboard/new" variant="ghost" className="w-full sm:w-auto">
                   {t.addAppointment}
                 </Button>
               ) : null}
-            </>
+            </div>
           }
         />
       ) : (

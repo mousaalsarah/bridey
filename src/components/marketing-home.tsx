@@ -71,7 +71,7 @@ export function MarketingHome() {
             <Button href="/login" variant="ghost" className="hidden sm:inline-flex">
               {t.login}
             </Button>
-            <Button href="/signup" variant="gold">
+            <Button href="/signup" variant="gold" className="max-sm:min-h-10 max-sm:px-3 max-sm:text-xs">
               {t.getStarted}
             </Button>
             <button
@@ -203,7 +203,7 @@ function Hero({ t }: { t: Dict }) {
     <section className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-8 lg:grid-cols-2 lg:pt-14">
       <div>
         <p className="mb-3 text-xs font-medium tracking-[0.22em] text-blush uppercase">{t.homeEyebrow}</p>
-        <h1 className="font-display text-4xl leading-tight text-espresso sm:text-6xl">{t.homeHeroTitle}</h1>
+        <h1 className="font-display text-3xl leading-tight text-espresso sm:text-6xl">{t.homeHeroTitle}</h1>
         <p className="mt-5 max-w-xl text-lg leading-8 text-espresso/70">{t.homeHeroBody}</p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Button href="/signup" variant="gold">

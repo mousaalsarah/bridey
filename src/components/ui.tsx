@@ -8,11 +8,11 @@ import { cn, parseSpecialties } from "@/lib/utils";
 export function Brand({ className, href = "/" }: { className?: string; href?: string }) {
   const { t } = useLang();
   return (
-    <Link href={href} className={cn("inline-flex items-center gap-2.5", className)}>
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-espresso text-ivory">
+    <Link href={href} className={cn("inline-flex min-w-0 items-center gap-2.5", className)}>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-espresso text-ivory">
         <span className="font-display text-[1.05rem] leading-none tracking-wide">B</span>
       </span>
-      <span className="font-display text-xl tracking-[0.04em] text-espresso">{t.brand}</span>
+      <span className="truncate font-display text-xl tracking-[0.04em] text-espresso">{t.brand}</span>
     </Link>
   );
 }
@@ -147,13 +147,13 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
       <div className="min-w-0">
         {eyebrow ? <p className="text-xs font-medium tracking-[0.18em] text-blush uppercase">{eyebrow}</p> : null}
-        <h1 className="mt-1 font-display text-3xl leading-tight text-espresso sm:text-4xl">{title}</h1>
+        <h1 className="mt-1 font-display text-[1.75rem] leading-tight text-espresso sm:text-4xl">{title}</h1>
         {body ? <p className="mt-2 max-w-xl text-sm leading-6 text-espresso/65">{body}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+      {actions ? <div className="flex w-full flex-wrap gap-2 sm:w-auto">{actions}</div> : null}
     </div>
   );
 }
@@ -187,7 +187,7 @@ export function StatCard({
   );
   if (!onClick) return inner;
   return (
-    <button type="button" onClick={onClick} className="text-start">
+    <button type="button" onClick={onClick} className="w-full text-start">
       {inner}
     </button>
   );

@@ -68,7 +68,10 @@ export default function OnboardingPage() {
       setError(t.required);
       return;
     }
-    router.push("/dashboard/share");
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("bridey-studio"));
+    }
+    router.replace("/dashboard");
   }
 
   return (
@@ -79,7 +82,7 @@ export default function OnboardingPage() {
       </header>
       <main className="mx-auto max-w-xl px-5 pb-16">
         <p className="text-xs font-medium tracking-[0.25em] text-blush uppercase">0{step + 1} / 03</p>
-        <h1 className="mt-2 font-display text-4xl">{t.onboardingTitle}</h1>
+        <h1 className="mt-2 font-display text-3xl sm:text-4xl">{t.onboardingTitle}</h1>
 
         <Card className="mt-8 p-6">
           {step === 0 ? (

@@ -27,12 +27,15 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
   background: var(--color-ivory);
   color: var(--color-espresso);
   font-family: var(--font-arabic), var(--font-sans), sans-serif;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 [lang="en"] body {

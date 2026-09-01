@@ -67,8 +67,8 @@ export function ArtistPublic({
       data-style={artist.pageStyle || "ivory"}
       data-accent={artist.accent || "gold"}
     >
-      <header className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
-        <p className="font-display text-lg">{artist.name}</p>
+      <header className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-4 sm:px-5">
+        <p className="min-w-0 truncate font-display text-lg">{artist.name}</p>
         <div className="flex items-center gap-2">
           <Button href="/track" variant="ghost" className="px-3 py-1 text-xs">
             {t.trackBooking}

@@ -61,7 +61,7 @@ export default function LoginPage() {
         <LangToggle />
       </header>
       <main className="mx-auto w-full max-w-md flex-1 px-5 pb-16">
-        <h1 className="font-display text-4xl text-espresso">{t.loginTitle}</h1>
+        <h1 className="font-display text-3xl text-espresso sm:text-4xl">{t.loginTitle}</h1>
         <p className="mt-2 text-espresso/60">{t.tagline}</p>
         <Card className="mt-8 p-6">
           <Suspense>

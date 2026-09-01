@@ -194,21 +194,21 @@ export function AppointmentPanel({
 
       <Card>
         <SectionLabel>{t.paymentSection}</SectionLabel>
-        <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-          <div>
-            <p className="font-display text-2xl">
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center sm:gap-3">
+          <div className="min-w-0">
+            <p className="font-display text-xl sm:text-2xl">
               {data.payment.totalLyd} <span className="text-sm font-sans">{t.lyd}</span>
             </p>
             <p className="mt-1 text-xs text-taupe">{t.total}</p>
           </div>
-          <div>
-            <p className="font-display text-2xl">
+          <div className="min-w-0">
+            <p className="font-display text-xl sm:text-2xl">
               {data.payment.paidLyd} <span className="text-sm font-sans">{t.lyd}</span>
             </p>
             <p className="mt-1 text-xs text-taupe">{t.paidLabel}</p>
           </div>
-          <div>
-            <p className={`font-display text-3xl ${data.payment.remainingLyd > 0 ? "text-espresso" : "text-success"}`}>
+          <div className="min-w-0">
+            <p className={`font-display text-2xl sm:text-3xl ${data.payment.remainingLyd > 0 ? "text-espresso" : "text-success"}`}>
               {data.payment.remainingLyd} <span className="text-sm font-sans">{t.lyd}</span>
             </p>
             <p className="mt-1 text-xs text-taupe">{t.remaining}</p>

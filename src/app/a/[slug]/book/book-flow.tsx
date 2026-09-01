@@ -233,7 +233,7 @@ export function BookFlow({
 
   return (
     <div className="bridal-bg min-h-screen">
-      <header className="mx-auto flex max-w-xl items-center justify-between px-5 py-5">
+      <header className="mx-auto flex max-w-xl items-center justify-between gap-2 px-4 py-5 sm:px-5">
         <Brand href={`/a/${slug}`} />
         <div className="flex items-center gap-2">
           <Button href="/track" variant="ghost" className="px-3 py-1 text-xs">

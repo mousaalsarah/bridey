@@ -172,7 +172,7 @@ export function useStudio() {
 
   const reload = useCallback(async (broadcast = true) => {
     try {
-      const res = await fetch("/api/me");
+      const res = await fetch("/api/me", { cache: "no-store" });
       if (res.ok) {
         setData(await res.json());
         setError("");
