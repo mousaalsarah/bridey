@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 import secrets
+from urllib.parse import unquote, urlparse
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,6 +10,27 @@ from sqlalchemy.orm import Session
 from bridey_api.constants import PASS_HIDDEN_STATUSES
 from bridey_api.errors import is_unique_constraint
 from bridey_api.models import Booking
+
+
+def parse_pass_token(raw: str) -> str:
+    text = (raw or "").strip()
+    if not text:
+        return ""
+    try:
+        parsed = urlparse(text)
+        if parsed.scheme and parsed.netloc:
+            parts = [part for part in parsed.path.split("/") if part]
+            for index, part in enumerate(parts):
+                if part in {"p", "pass"} and index + 1 < len(parts):
+                    return unquote(parts[index + 1])
+    except ValueError:
+        pass
+    path = re.search(r"/(?:p|pass)/([^/?#]+)", text, re.I)
+    if path and path.group(1):
+        return unquote(path.group(1))
+    if re.fullmatch(r"[A-Za-z0-9_-]{32,}", text):
+        return text
+    return ""
 
 
 def random_pass_token() -> str:

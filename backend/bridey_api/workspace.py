@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from bridey_api.capacity import claim_capacity_seats
@@ -271,6 +271,33 @@ def ensure_workspace(session: Session, artist: Artist) -> dict:
 
 def require_workspace(session: Session, artist: Artist) -> dict:
     return ensure_workspace(session, artist)
+
+
+def require_permission(ws: dict, key: str) -> None:
+    if not ws["permissions"].get(key):
+        raise WorkspaceError("FORBIDDEN", 403)
+
+
+def promote_to_salon_if_team(session: Session, business_id: str) -> None:
+    business = session.get(Business, business_id)
+    if not business or business.business_type == "salon":
+        return
+    active_count = session.scalar(
+        select(func.count()).select_from(TeamMember).where(
+            TeamMember.business_id == business_id,
+            TeamMember.status == "ACTIVE",
+        )
+    ) or 0
+    if active_count > 1:
+        business.business_type = "salon"
+        session.flush()
+
+
+def booking_scope_filters(ws: dict) -> list:
+    filters = [Booking.business_id == ws["business"].id]
+    if not ws["permissions"]["canManageBusiness"]:
+        filters.append(Booking.assignments.any(BookingAssignment.team_member_id == ws["member"].id))
+    return filters
 
 
 def sync_service_staff_by_role(session: Session, business_id: str) -> None:

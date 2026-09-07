@@ -402,6 +402,7 @@ class SubscriptionPayment(Base):
     updated_at: Mapped[datetime | None] = mapped_column("updatedAt", DateTime)
 
     invoice: Mapped[SubscriptionInvoice] = relationship(back_populates="payments")
+    artist: Mapped[Artist] = relationship(foreign_keys=[artist_id])
 
 
 class PaymentSettings(Base):

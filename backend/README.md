@@ -44,12 +44,15 @@ Flask reads `AUTH_SECRET` and `DATABASE_URL` from `backend/.env` or the repo-roo
 - `GET`/`PATCH /api/bookings/<id>` (confirm public requests → 5 LYD fee + pass token)
 - `GET`/`POST /api/bookings/<id>/appointment` (`CONFIRMED → CHECKED_IN → IN_PROGRESS → COMPLETED`, payment after complete)
 - `GET /api/public/availability`, `GET /api/public/slots`, `GET /api/public/artists`, `GET /api/public/track/<code>`
+- `POST /api/team`, `PATCH /api/team/<id>`
+- `POST /api/services`, `PATCH`/`DELETE /api/services/<id>`
+- `PUT /api/hours`, `POST`/`DELETE /api/blocked`
+- `GET /api/alerts`, `GET /api/pass/<token>`, `GET /api/qr`
+- `POST /api/media`, `POST`/`DELETE /api/portfolio/<id>` (local `public/uploads`; `STORAGE_UNAVAILABLE` on Vercel/Lambda)
+- `GET /api/fees`, `POST /api/fees/submit`
+- Admin: overview, artists, payments confirm/reject, revenue, settings
 - Same JSON error codes as Next.js (`INVALID`, `LOGIN`, `PHONE`, `TAKEN`) and the same `bridey_session` / `bridey_admin` cookies
 - SQLAlchemy models that map Prisma table names and camelCase columns
 - Dockerfile for AWS Lambda Web Adapter (not deployed yet)
 
-Prisma still owns migrations. Do not run `create_all()` against the live database.
-
-## What is not implemented yet
-
-Team/service/hours CRUD, pass scan, uploads, and admin. Do not point Vercel `/api/*` at this Flask app until those routes exist.
+Prisma still owns migrations. Do not run `create_all()` against the live database. Do not point Vercel `/api/*` at this Flask app until a deliberate cutover.

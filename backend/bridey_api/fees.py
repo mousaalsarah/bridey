@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from bridey_api.dates import add_days_iso, days_between, month_end_iso, month_start_iso, next_month_start_iso, today_iso
 from bridey_api.ids import new_id
+from bridey_api.errors import FeeError
 from bridey_api.models import (
     ArtistNotice,
     ArtistSubscription,
     AuditLog,
+    Booking,
     NumberSequence,
     PaymentSettings,
     PlatformFee,
     SubscriptionInvoice,
+    SubscriptionPayment,
 )
 from bridey_api.serialize import to_json
 
@@ -81,12 +86,22 @@ def write_audit(session: Session, data: dict) -> None:
             payment_id=data.get("paymentId") or "",
             invoice_id=data.get("invoiceId") or "",
             reason=data.get("reason") or "",
+            created_at=datetime.now(timezone.utc),
         )
     )
 
 
 def notify(session: Session, artist_id: str, kind: str, body_ar: str, body_en: str) -> None:
-    session.add(ArtistNotice(id=new_id(), artist_id=artist_id, kind=kind, body_ar=body_ar, body_en=body_en))
+    session.add(
+        ArtistNotice(
+            id=new_id(),
+            artist_id=artist_id,
+            kind=kind,
+            body_ar=body_ar,
+            body_en=body_en,
+            created_at=datetime.now(timezone.utc),
+        )
+    )
 
 
 def ensure_payment_settings(session: Session) -> PaymentSettings:
@@ -216,6 +231,7 @@ def _collect_unpaid_fees(session: Session, artist_id: str) -> None:
     )
     for fee in loose:
         fee.invoice_id = invoice.id
+    session.flush()
     _sync_invoice_amount(session, invoice.id)
 
 
@@ -399,14 +415,225 @@ def attach_fee_to_invoice(session: Session, artist_id: str, fee_id: str):
         },
     )
     fee.invoice_id = invoice.id
+    session.flush()
     _sync_invoice_amount(session, invoice.id)
     return fee
 
 
 def assert_can_create_booking(session: Session, artist_id: str):
-    from bridey_api.errors import FeeError
-
     account = refresh_fee_account(session, artist_id)
     if not can_create_new_bookings(account):
         raise FeeError("FEES_PAUSED", 403)
     return account
+
+
+def submit_fee_payment(session: Session, artist_id: str, input: dict) -> SubscriptionPayment:
+    account = refresh_fee_account(session, artist_id)
+    invoice = session.scalars(
+        select(SubscriptionInvoice)
+        .where(SubscriptionInvoice.id == input["invoiceId"], SubscriptionInvoice.artist_id == artist_id)
+        .options(selectinload(SubscriptionInvoice.fees))
+    ).first()
+    if not invoice:
+        raise FeeError("NOT_FOUND", 404)
+    if invoice.status in {"PAID", "CANCELLED"}:
+        raise FeeError("INVOICE_CLOSED", 400)
+    if invoice.amount_lyd <= 0 or not invoice.fees:
+        raise FeeError("NO_BALANCE", 400)
+    methods = ensure_payment_settings(session).supported_methods.split(",")
+    method = input.get("method") if input.get("method") in methods else "OTHER"
+    now = datetime.now(timezone.utc)
+    payment = SubscriptionPayment(
+        id=new_id(),
+        artist_id=artist_id,
+        subscription_id=account.id,
+        invoice_id=invoice.id,
+        amount_lyd=input.get("amountLyd") or invoice.amount_lyd,
+        currency=invoice.currency,
+        method=method,
+        status="PENDING",
+        reference=input.get("reference") or invoice.reference,
+        receipt_url=input.get("receiptUrl") or "",
+        note=(input.get("note") or "")[:500],
+        paid_on=input.get("paidOn") or today_iso(),
+        submitted_at=now,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(payment)
+    invoice.status = "PAYMENT_PENDING"
+    account.status = "PAYMENT_PENDING"
+    session.flush()
+    notify(
+        session,
+        artist_id,
+        "payment_submitted",
+        "إثبات دفع رسوم برايدي قيد المراجعة.",
+        "Your platform-fee payment has been submitted and is awaiting verification.",
+    )
+    write_audit(
+        session,
+        {
+            "actorType": "artist",
+            "actorId": artist_id,
+            "action": "payment_submitted",
+            "artistId": artist_id,
+            "paymentId": payment.id,
+            "invoiceId": invoice.id,
+        },
+    )
+    return payment
+
+
+def confirm_payment(session: Session, payment_id: str, reviewer_id: str, actor_type: str = "admin") -> SubscriptionPayment:
+    payment = session.scalars(
+        select(SubscriptionPayment)
+        .where(SubscriptionPayment.id == payment_id)
+        .options(selectinload(SubscriptionPayment.invoice).selectinload(SubscriptionInvoice.fees))
+    ).first()
+    if not payment:
+        raise FeeError("NOT_FOUND", 404)
+    if payment.status == "CONFIRMED":
+        return payment
+    now = datetime.now(timezone.utc)
+    payment.status = "CONFIRMED"
+    payment.reviewed_at = now
+    payment.reviewed_by = reviewer_id
+    payment.invoice.status = "PAID"
+    fee_ids = [fee.id for fee in payment.invoice.fees]
+    booking_ids = [fee.booking_id for fee in payment.invoice.fees]
+    if fee_ids:
+        for fee in payment.invoice.fees:
+            fee.status = "PAID"
+            fee.paid_at = now
+        for booking in session.scalars(select(Booking).where(Booking.id.in_(booking_ids))):
+            booking.fee_status = "PAID"
+    account = session.scalar(select(ArtistSubscription).where(ArtistSubscription.id == payment.subscription_id))
+    if account:
+        account.status = "ACTIVE"
+        account.new_bookings_paused = False
+        account.manual_suspend = False
+    session.flush()
+    notify(
+        session,
+        payment.artist_id,
+        "payment_confirmed",
+        "تم تأكيد دفع رسوم برايدي.",
+        "Your Bridey platform-fee payment has been confirmed.",
+    )
+    write_audit(
+        session,
+        {
+            "actorType": actor_type,
+            "actorId": reviewer_id,
+            "action": "payment_confirmed",
+            "artistId": payment.artist_id,
+            "paymentId": payment.id,
+            "invoiceId": payment.invoice_id,
+        },
+    )
+    refresh_fee_account(session, payment.artist_id)
+    return session.get(SubscriptionPayment, payment.id)
+
+
+def reject_payment(session: Session, payment_id: str, reviewer_id: str, reason: str) -> SubscriptionPayment:
+    payment = session.get(SubscriptionPayment, payment_id)
+    if not payment:
+        raise FeeError("NOT_FOUND", 404)
+    if payment.status == "CONFIRMED":
+        raise FeeError("ALREADY_CONFIRMED", 400)
+    payment.status = "REJECTED"
+    payment.reviewed_at = datetime.now(timezone.utc)
+    payment.reviewed_by = reviewer_id
+    payment.rejection_reason = reason[:400]
+    session.flush()
+    pending = session.scalar(
+        select(SubscriptionPayment.id).where(
+            SubscriptionPayment.invoice_id == payment.invoice_id,
+            SubscriptionPayment.status == "PENDING",
+        )
+    )
+    invoice = session.get(SubscriptionInvoice, payment.invoice_id)
+    if invoice:
+        invoice.status = "PAYMENT_PENDING" if pending else ("OVERDUE" if today_iso() > invoice.due_date else "UNPAID")
+    session.flush()
+    notify(
+        session,
+        payment.artist_id,
+        "payment_rejected",
+        f"ما قدرنا نتحقق من دفعة الرسوم. {reason} قدّمي إيصالاً جديداً.",
+        f"Your fee payment could not be verified. {reason} Please submit a new payment.",
+    )
+    write_audit(
+        session,
+        {
+            "actorType": "admin",
+            "actorId": reviewer_id,
+            "action": "payment_rejected",
+            "artistId": payment.artist_id,
+            "paymentId": payment.id,
+            "invoiceId": payment.invoice_id,
+            "reason": reason,
+        },
+    )
+    refresh_fee_account(session, payment.artist_id)
+    return session.get(SubscriptionPayment, payment.id)
+
+
+def admin_override(session: Session, artist_id: str, admin_id: str, input: dict) -> ArtistSubscription:
+    reason = (input.get("reason") or "").strip()
+    if not reason:
+        raise FeeError("REASON_REQUIRED", 400)
+    account = refresh_fee_account(session, artist_id)
+    today = today_iso()
+    action = input.get("action")
+    if action == "activate":
+        account.status = "ACTIVE"
+        account.new_bookings_paused = False
+        account.manual_suspend = False
+        if today >= account.grace_period_end_date or today > account.next_payment_due_date:
+            due = add_days_iso(today, 30)
+            account.next_payment_due_date = due
+            account.grace_period_end_date = add_days_iso(due, GRACE_DAYS)
+            for invoice in session.scalars(
+                select(SubscriptionInvoice).where(
+                    SubscriptionInvoice.artist_id == artist_id,
+                    SubscriptionInvoice.status.in_(["UNPAID", "OVERDUE"]),
+                )
+            ):
+                invoice.due_date = due
+                invoice.status = "UNPAID"
+    elif action == "suspend":
+        account.status = "SUSPENDED"
+        account.new_bookings_paused = True
+        account.manual_suspend = True
+    elif action == "extend":
+        days = max(1, int(input.get("days") or 30))
+        base = account.next_payment_due_date if account.next_payment_due_date >= today else today
+        due = add_days_iso(base, days)
+        account.next_payment_due_date = due
+        account.grace_period_end_date = add_days_iso(due, GRACE_DAYS)
+        account.status = "ACTIVE"
+        account.new_bookings_paused = False
+        account.manual_suspend = False
+        for invoice in session.scalars(
+            select(SubscriptionInvoice).where(
+                SubscriptionInvoice.artist_id == artist_id,
+                SubscriptionInvoice.status.in_(["UNPAID", "OVERDUE"]),
+            )
+        ):
+            invoice.due_date = due
+            invoice.status = "UNPAID"
+    session.flush()
+    write_audit(
+        session,
+        {
+            "actorType": "admin",
+            "actorId": admin_id,
+            "action": f"fees_{action}",
+            "artistId": artist_id,
+            "reason": reason,
+        },
+    )
+    return refresh_fee_account(session, artist_id)
+

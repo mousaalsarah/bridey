@@ -54,6 +54,14 @@ def month_end_iso(iso: str) -> str:
     return add_days_iso(next_month_start_iso(iso), -1)
 
 
+def shift_month(month: str, delta: int) -> str:
+    y, m = (int(part) for part in month.split("-")[:2])
+    month_index = m - 1 + delta
+    year = y + month_index // 12
+    mm = month_index % 12 + 1
+    return f"{year:04d}-{mm:02d}"
+
+
 def days_between(from_iso: str, to_iso: str) -> int:
     fy, fm, fd = (int(part) for part in from_iso.split("-"))
     ty, tm, td = (int(part) for part in to_iso.split("-"))
