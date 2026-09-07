@@ -4,7 +4,7 @@ from flask import Flask
 
 from bridey_api.config import load_env
 from bridey_api.db import init_engine
-from bridey_api.routes import auth_bp, health_bp, session_bp
+from bridey_api.routes import auth_bp, health_bp, me_bp, onboarding_bp, session_bp
 
 
 def create_app(database_url: str | None = None) -> Flask:
@@ -18,4 +18,6 @@ def create_app(database_url: str | None = None) -> Flask:
     app.register_blueprint(health_bp)
     app.register_blueprint(session_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(me_bp)
+    app.register_blueprint(onboarding_bp)
     return app

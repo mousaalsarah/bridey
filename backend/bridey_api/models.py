@@ -75,6 +75,10 @@ class Business(Base):
 
     owner: Mapped[Artist] = relationship(back_populates="owned_businesses", foreign_keys=[owner_id])
     members: Mapped[list[TeamMember]] = relationship(back_populates="business")
+    shifts: Mapped[list[Shift]] = relationship(back_populates="business", order_by="Shift.sort_order")
+    hours: Mapped[list[WeeklyHour]] = relationship(back_populates="business")
+    blocked: Mapped[list[BlockedDate]] = relationship(back_populates="business")
+    services: Mapped[list[Service]] = relationship(back_populates="business")
 
 
 class TeamMember(Base):
@@ -94,6 +98,9 @@ class TeamMember(Base):
 
     business: Mapped[Business] = relationship(back_populates="members")
     artist: Mapped[Artist | None] = relationship(back_populates="memberships")
+    services: Mapped[list[TeamMemberService]] = relationship(back_populates="team_member")
+    assignments: Mapped[list[BookingAssignment]] = relationship(back_populates="team_member")
+    holds: Mapped[list[CapacityHold]] = relationship(back_populates="team_member")
 
 
 class TeamMemberService(Base):
@@ -101,6 +108,9 @@ class TeamMemberService(Base):
 
     team_member_id: Mapped[str] = mapped_column("teamMemberId", ForeignKey("TeamMember.id"), primary_key=True)
     service_id: Mapped[str] = mapped_column("serviceId", ForeignKey("Service.id"), primary_key=True)
+
+    team_member: Mapped[TeamMember] = relationship(back_populates="services")
+    service: Mapped[Service] = relationship(back_populates="staff")
 
 
 class Shift(Base):
@@ -118,6 +128,9 @@ class Shift(Base):
     sort_order: Mapped[int] = mapped_column("sortOrder", Integer, default=0)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    business: Mapped[Business] = relationship(back_populates="shifts")
+    bookings: Mapped[list[Booking]] = relationship(back_populates="shift")
+
 
 class Service(Base):
     __tablename__ = "Service"
@@ -133,6 +146,12 @@ class Service(Base):
     price_lyd: Mapped[int] = mapped_column("priceLyd", Integer, nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime)
+
+    business: Mapped[Business | None] = relationship(back_populates="services")
+    staff: Mapped[list[TeamMemberService]] = relationship(back_populates="service")
+    bookings: Mapped[list[Booking]] = relationship(back_populates="service")
+    items: Mapped[list[BookingItem]] = relationship(back_populates="service")
+    assignments: Mapped[list[BookingAssignment]] = relationship(back_populates="service")
 
 
 class PortfolioImage(Base):
@@ -156,6 +175,8 @@ class WeeklyHour(Base):
     start_min: Mapped[int] = mapped_column("startMin", Integer, nullable=False)
     end_min: Mapped[int] = mapped_column("endMin", Integer, nullable=False)
 
+    business: Mapped[Business | None] = relationship(back_populates="hours")
+
 
 class BlockedDate(Base):
     __tablename__ = "BlockedDate"
@@ -166,6 +187,8 @@ class BlockedDate(Base):
     business_id: Mapped[str | None] = mapped_column("businessId", ForeignKey("Business.id"), index=True)
     date: Mapped[str] = mapped_column(String, nullable=False)
     reason: Mapped[str] = mapped_column(String, default="")
+
+    business: Mapped[Business | None] = relationship(back_populates="blocked")
 
 
 class Booking(Base):
@@ -207,6 +230,14 @@ class Booking(Base):
     request_id: Mapped[str | None] = mapped_column("requestId", String, unique=True)
     created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime)
 
+    service: Mapped[Service] = relationship(back_populates="bookings")
+    shift: Mapped[Shift | None] = relationship(back_populates="bookings")
+    items: Mapped[list[BookingItem]] = relationship(back_populates="booking")
+    assignments: Mapped[list[BookingAssignment]] = relationship(back_populates="booking")
+    fee: Mapped[PlatformFee | None] = relationship(back_populates="booking")
+    holds: Mapped[list[SlotHold]] = relationship(back_populates="booking")
+    capacity_holds: Mapped[list[CapacityHold]] = relationship(back_populates="booking")
+
 
 class BookingAssignment(Base):
     __tablename__ = "BookingAssignment"
@@ -216,6 +247,10 @@ class BookingAssignment(Base):
     booking_id: Mapped[str] = mapped_column("bookingId", ForeignKey("Booking.id"), nullable=False)
     team_member_id: Mapped[str] = mapped_column("teamMemberId", ForeignKey("TeamMember.id"), nullable=False, index=True)
     service_id: Mapped[str] = mapped_column("serviceId", ForeignKey("Service.id"), nullable=False)
+
+    booking: Mapped[Booking] = relationship(back_populates="assignments")
+    team_member: Mapped[TeamMember] = relationship(back_populates="assignments")
+    service: Mapped[Service] = relationship(back_populates="assignments")
 
 
 class CapacityHold(Base):
@@ -229,6 +264,9 @@ class CapacityHold(Base):
     seat: Mapped[int] = mapped_column(Integer, nullable=False)
     booking_id: Mapped[str] = mapped_column("bookingId", ForeignKey("Booking.id"), nullable=False, index=True)
 
+    team_member: Mapped[TeamMember] = relationship(back_populates="holds")
+    booking: Mapped[Booking] = relationship(back_populates="capacity_holds")
+
 
 class SlotHold(Base):
     __tablename__ = "SlotHold"
@@ -239,6 +277,8 @@ class SlotHold(Base):
     date: Mapped[str] = mapped_column(String, nullable=False)
     start_min: Mapped[int] = mapped_column("startMin", Integer, nullable=False)
     booking_id: Mapped[str] = mapped_column("bookingId", ForeignKey("Booking.id"), nullable=False, index=True)
+
+    booking: Mapped[Booking] = relationship(back_populates="holds")
 
 
 class PlatformFee(Base):
@@ -254,6 +294,9 @@ class PlatformFee(Base):
     created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime)
     paid_at: Mapped[datetime | None] = mapped_column("paidAt", DateTime)
 
+    booking: Mapped[Booking] = relationship(back_populates="fee")
+    invoice: Mapped[SubscriptionInvoice | None] = relationship(back_populates="fees")
+
 
 class BookingItem(Base):
     __tablename__ = "BookingItem"
@@ -266,6 +309,9 @@ class BookingItem(Base):
     name_en: Mapped[str] = mapped_column("nameEn", String, nullable=False)
     duration_min: Mapped[int] = mapped_column("durationMin", Integer, nullable=False)
     price_lyd: Mapped[int] = mapped_column("priceLyd", Integer, nullable=False)
+
+    booking: Mapped[Booking] = relationship(back_populates="items")
+    service: Mapped[Service] = relationship(back_populates="items")
 
 
 class Admin(Base):
@@ -329,6 +375,9 @@ class SubscriptionInvoice(Base):
     created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime)
     updated_at: Mapped[datetime | None] = mapped_column("updatedAt", DateTime)
 
+    fees: Mapped[list[PlatformFee]] = relationship(back_populates="invoice")
+    payments: Mapped[list[SubscriptionPayment]] = relationship(back_populates="invoice")
+
 
 class SubscriptionPayment(Base):
     __tablename__ = "SubscriptionPayment"
@@ -351,6 +400,8 @@ class SubscriptionPayment(Base):
     rejection_reason: Mapped[str] = mapped_column("rejectionReason", String, default="")
     created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime)
     updated_at: Mapped[datetime | None] = mapped_column("updatedAt", DateTime)
+
+    invoice: Mapped[SubscriptionInvoice] = relationship(back_populates="payments")
 
 
 class PaymentSettings(Base):

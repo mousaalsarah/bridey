@@ -17,3 +17,20 @@ SESSION_COOKIE = "bridey_session"
 ADMIN_COOKIE = "bridey_admin"
 SESSION_DAYS = 30
 ADMIN_SESSION_DAYS = 7
+
+MANAGEMENT_ROLES = ("OWNER", "MANAGER")
+TEAM_ROLES = (
+    "OWNER",
+    "MANAGER",
+    "MAKEUP_ARTIST",
+    "HAIRSTYLIST",
+    "NAIL_ARTIST",
+    "LASH_ARTIST",
+    "OTHER",
+)
+SPECIALTIES = ("makeup", "hair", "henna", "nails", "skincare", "photo")
+HOUR_PRESETS = (
+    {"id": "evenings", "days": (0, 1, 2, 3, 4, 5, 6), "startMin": 14 * 60, "endMin": 22 * 60},
+    {"id": "bride-days", "days": (4, 5, 6), "startMin": 10 * 60, "endMin": 22 * 60},
+    {"id": "full-day", "days": (0, 1, 2, 3, 4, 5, 6), "startMin": 10 * 60, "endMin": 20 * 60},
+)
