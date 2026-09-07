@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from bridey_api.constants import DAY_BUCKET
-from bridey_api.errors import CapacityFullError, is_unique_constraint
+from bridey_api.errors import CapacityFullError, PreferredUnavailableError, is_unique_constraint
 from bridey_api.ids import new_id
 from bridey_api.models import CapacityHold
 
@@ -214,3 +214,22 @@ def assign_staff(
             raise CapacityFullError()
         take_member(pick["id"], service_id)
     return result
+
+
+def remaining_bookings_for_services(business, staff: list[dict], service_ids: list[str]) -> int:
+    count = 0
+    clone = [dict(row) for row in staff]
+    for _ in range(40):
+        try:
+            assigned = assign_staff(service_ids=service_ids, staff=clone, business=business)
+            used = {row["teamMemberId"] for row in assigned}
+            for member_id in used:
+                row = next((item for item in clone if item["id"] == member_id), None)
+                if not row:
+                    continue
+                row["remainingDay"] = max(0, row["remainingDay"] - 1)
+                row["remainingShift"] = max(0, row["remainingShift"] - 1)
+            count += 1
+        except (CapacityFullError, PreferredUnavailableError):
+            break
+    return count

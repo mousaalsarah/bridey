@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
@@ -51,6 +52,10 @@ def hold_expires_at(from_time: datetime | None = None) -> datetime:
 
 def random_track_code() -> str:
     return "BR" + "".join(secrets.choice(ALPHABET) for _ in range(10))
+
+
+def normalize_track_code(raw: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "", raw.strip().upper())
 
 
 def unique_track_code(session: Session) -> str:

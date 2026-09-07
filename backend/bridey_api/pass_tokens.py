@@ -5,6 +5,8 @@ import secrets
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from bridey_api.constants import PASS_HIDDEN_STATUSES
+from bridey_api.errors import is_unique_constraint
 from bridey_api.models import Booking
 
 
@@ -19,6 +21,39 @@ def unique_pass_token(session: Session) -> str:
         if not exists:
             return token
     return random_pass_token()
+
+
+def ensure_pass_token(session: Session, booking: Booking) -> str:
+    if booking.status in PASS_HIDDEN_STATUSES:
+        return booking.bridey_pass_token or ""
+    if booking.bridey_pass_token:
+        return booking.bridey_pass_token
+    for _ in range(8):
+        token = unique_pass_token(session)
+        try:
+            with session.begin_nested():
+                booking.bridey_pass_token = token
+                session.flush()
+            return token
+        except Exception as error:
+            if not is_unique_constraint(error, "brideyPassToken"):
+                raise
+    raise RuntimeError("PASS_TOKEN_FAILED")
+
+
+def pass_is_available(booking) -> bool:
+    if not booking.bridey_pass_token:
+        return False
+    if booking.status in PASS_HIDDEN_STATUSES:
+        return False
+    return bool(booking.confirmed_at) or booking.status in {
+        "CONFIRMED",
+        "CHECKED_IN",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "CANCELLED",
+        "NO_SHOW",
+    }
 
 
 def booking_total_lyd(booking) -> int:

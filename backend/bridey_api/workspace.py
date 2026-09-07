@@ -292,6 +292,10 @@ def sync_service_staff_by_role(session: Session, business_id: str) -> None:
     session.flush()
 
 
+def active_members(business) -> list:
+    return [member for member in business.members if member.status == "ACTIVE"]
+
+
 def lock_business(session: Session, business_id: str) -> None:
     business = session.get(Business, business_id)
     if business:
