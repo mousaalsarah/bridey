@@ -31,6 +31,18 @@ curl.exe http://127.0.0.1:5000/api/auth/session -H "Cookie: bridey_session=PASTE
 
 Flask reads `AUTH_SECRET` and `DATABASE_URL` from `backend/.env` or the repo-root `.env`. Use the same values as Next.js so JWTs match.
 
+## Optional: UI on :3000, Flask for `/api`
+
+Keep `src/app/api` in the repo. For local dual-run only, start Flask, then in the repo-root `.env`:
+
+```
+FLASK_API_ORIGIN=http://127.0.0.1:5000
+```
+
+Restart `npm run dev`. Browser calls still go to `http://localhost:3000/api/...`; Next.js middleware forwards them to Flask. Cookies stay on localhost:3000.
+
+Do not set this on Vercel unless you also set `FLASK_API_CUTOVER=1` after Flask is deployed and contracts are verified.
+
 ## What is implemented
 
 - `GET /health` and `GET /api/health`
