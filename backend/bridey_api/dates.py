@@ -8,6 +8,11 @@ from bridey_api.constants import TIMEZONE
 TZ = ZoneInfo(TIMEZONE)
 
 
+def weekday_of(iso: str) -> int:
+    y, m, d = (int(part) for part in iso.split("-"))
+    return datetime(y, m, d).isoweekday() % 7
+
+
 def today_iso() -> str:
     now = datetime.now(TZ)
     return f"{now.year:04d}-{now.month:02d}-{now.day:02d}"

@@ -290,3 +290,36 @@ def sync_service_staff_by_role(session: Session, business_id: str) -> None:
         for team_member_id in to_add:
             session.add(TeamMemberService(team_member_id=team_member_id, service_id=service.id))
     session.flush()
+
+
+def lock_business(session: Session, business_id: str) -> None:
+    business = session.get(Business, business_id)
+    if business:
+        business.updated_at = datetime.now(timezone.utc)
+        session.flush()
+
+
+def lock_team_members(session: Session, ids: list[str]) -> None:
+    now = datetime.now(timezone.utc)
+    for member_id in dict.fromkeys(ids):
+        member = session.get(TeamMember, member_id)
+        if member:
+            member.updated_at = now
+    session.flush()
+
+
+def find_business_by_slug(session: Session, slug: str):
+    direct = session.scalars(select(Business).where(Business.slug == slug).options(*BUSINESS_LOAD)).first()
+    if direct:
+        direct.shifts.sort(key=lambda row: row.sort_order)
+        return direct
+    artist = session.scalar(select(Artist).where(Artist.slug == slug))
+    if not artist:
+        return None
+    owned = session.scalar(select(Business).where(Business.owner_id == artist.id))
+    if not owned and not artist.onboarding_complete:
+        return None
+    ws = ensure_workspace(session, artist)
+    if ws["business"].owner_id != artist.id:
+        return None
+    return load_business(session, ws["business"].id)

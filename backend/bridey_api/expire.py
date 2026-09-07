@@ -9,6 +9,14 @@ from bridey_api.dates import now_minutes_tripoli, today_iso
 from bridey_api.models import Booking, Business, CapacityHold, SlotHold
 
 
+def _as_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
 def expire_overdue(session: Session, artist_id: str | None = None) -> list[str]:
     today = today_iso()
     now = datetime.now(timezone.utc)
@@ -30,7 +38,7 @@ def expire_overdue(session: Session, artist_id: str | None = None) -> list[str]:
     ids = [
         booking.id
         for booking in pending
-        if (booking.expires_at and booking.expires_at <= now)
+        if (_as_utc(booking.expires_at) and _as_utc(booking.expires_at) <= now)
         or booking.date < today
         or (booking.date == today and booking.end_min <= now_min)
     ]

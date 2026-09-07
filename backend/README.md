@@ -39,6 +39,10 @@ Flask reads `AUTH_SECRET` and `DATABASE_URL` from `backend/.env` or the repo-roo
 - `GET /api/auth/session` and `GET /api/admin/session`
 - `POST /api/onboarding`
 - `GET /api/me` and `PATCH /api/me` (studio payload, phone privacy, fee snapshot)
+- `POST /api/bookings` (manual, confirmed, 0 LYD fee)
+- `POST /api/public/book` (pending public request, 30-minute hold, `NOTES_CONTACT`)
+- `GET`/`PATCH /api/bookings/<id>` (confirm public requests → 5 LYD fee + pass token)
+- `GET`/`POST /api/bookings/<id>/appointment` (`CONFIRMED → CHECKED_IN → IN_PROGRESS → COMPLETED`, payment after complete)
 - Same JSON error codes as Next.js (`INVALID`, `LOGIN`, `PHONE`, `TAKEN`) and the same `bridey_session` / `bridey_admin` cookies
 - SQLAlchemy models that map Prisma table names and camelCase columns
 - Dockerfile for AWS Lambda Web Adapter (not deployed yet)
@@ -47,4 +51,4 @@ Prisma still owns migrations. Do not run `create_all()` against the live databas
 
 ## What is not implemented yet
 
-Creating/updating bookings, passes, team CRUD, uploads, public booking, and the rest of the Next.js API routes. Do not point Vercel `/api/*` at this Flask app until those routes exist.
+Team/service/hours CRUD, public availability and slots, pass scan, uploads, and admin. Do not point Vercel `/api/*` at this Flask app until those routes exist.

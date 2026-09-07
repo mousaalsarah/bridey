@@ -367,3 +367,46 @@ def _invoice_json(invoice: SubscriptionInvoice) -> dict:
             }
         payload["fees"].append(row)
     return payload
+
+
+def attach_fee_to_invoice(session: Session, artist_id: str, fee_id: str):
+    account = ensure_fee_account(session, artist_id)
+    fee = session.scalar(select(PlatformFee).where(PlatformFee.id == fee_id, PlatformFee.artist_id == artist_id))
+    if not fee or fee.status == "PAID":
+        return fee
+    if fee.invoice_id:
+        _sync_invoice_amount(session, fee.invoice_id)
+        return fee
+    fee_day = str(fee.created_at)[:10] if fee.created_at else today_iso()
+    period = period_dates(fee_day)
+    open_invoice = session.scalar(
+        select(SubscriptionInvoice)
+        .where(
+            SubscriptionInvoice.subscription_id == account.id,
+            SubscriptionInvoice.period_start == period["start"],
+            SubscriptionInvoice.status.in_(["UNPAID", "OVERDUE"]),
+        )
+        .order_by(SubscriptionInvoice.created_at.desc())
+    )
+    invoice = open_invoice or _create_fee_invoice(
+        session,
+        {
+            "artistId": artist_id,
+            "subscriptionId": account.id,
+            "periodStart": period["start"],
+            "periodEnd": period["end"],
+            "dueDate": period["due"],
+        },
+    )
+    fee.invoice_id = invoice.id
+    _sync_invoice_amount(session, invoice.id)
+    return fee
+
+
+def assert_can_create_booking(session: Session, artist_id: str):
+    from bridey_api.errors import FeeError
+
+    account = refresh_fee_account(session, artist_id)
+    if not can_create_new_bookings(account):
+        raise FeeError("FEES_PAUSED", 403)
+    return account
