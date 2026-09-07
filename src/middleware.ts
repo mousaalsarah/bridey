@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { proxyToFlask, shouldProxyToFlask } from "@/lib/flask-proxy";
 import { adminSecretBytes, authSecretBytes } from "@/lib/secrets";
 
 const PROTECTED = ["/dashboard", "/onboarding"];
@@ -11,6 +12,10 @@ function secret() {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (shouldProxyToFlask(pathname)) {
+    return proxyToFlask(req);
+  }
+
   const isAdminPath = ADMIN.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   if (isAdminPath && pathname !== "/admin/login") {
     const admin = req.cookies.get("bridey_admin")?.value;
@@ -51,5 +56,14 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard", "/dashboard/:path*", "/onboarding", "/admin", "/admin/:path*"],
+  matcher: [
+    "/dashboard",
+    "/dashboard/:path*",
+    "/onboarding",
+    "/admin",
+    "/admin/:path*",
+    "/api",
+    "/api/:path*",
+    "/health",
+  ],
 };

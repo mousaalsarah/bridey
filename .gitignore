@@ -46,3 +46,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python / flask
+__pycache__/
+*.py[cod]
+.venv/
+backend/.venv/
