@@ -3,9 +3,6 @@ from __future__ import annotations
 import os
 import unittest
 
-os.environ["DATABASE_URL"] = ""
-os.environ["AUTH_SECRET"] = "unit-test-secret"
-
 from bridey_api import create_app
 from bridey_api.auth import create_admin_token, create_artist_token
 from bridey_api.constants import ADMIN_COOKIE, PLATFORM_FEE_LYD, SESSION_COOKIE
@@ -13,7 +10,8 @@ from bridey_api.constants import ADMIN_COOKIE, PLATFORM_FEE_LYD, SESSION_COOKIE
 
 class FlaskSmokeTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.app = create_app()
+        os.environ["AUTH_SECRET"] = "unit-test-secret"
+        self.app = create_app("")
         self.client = self.app.test_client()
 
     def test_health(self) -> None:

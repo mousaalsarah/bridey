@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import os
 
 import bcrypt
 import jwt
 from sqlalchemy.orm import Session
 
-from bridey_api.config import admin_secret_value, auth_secret_value
-from bridey_api.constants import ADMIN_SESSION_DAYS, SESSION_DAYS
+from flask import Response
+
+from bridey_api.config import admin_secret_value, auth_secret_value, is_deployed_runtime
+from bridey_api.constants import (
+    ADMIN_COOKIE,
+    ADMIN_SESSION_DAYS,
+    SESSION_COOKIE,
+    SESSION_DAYS,
+)
 from bridey_api.models import Admin, Artist
 
 
@@ -76,3 +84,29 @@ def get_admin(session: Session, token: str | None) -> Admin | None:
     if not admin_id:
         return None
     return session.get(Admin, admin_id)
+
+
+def _cookie_flags(max_age: int) -> dict:
+    return {
+        "httponly": True,
+        "samesite": "Lax",
+        "secure": is_deployed_runtime() or os.environ.get("NODE_ENV") == "production",
+        "path": "/",
+        "max_age": max_age,
+    }
+
+
+def set_artist_session(response: Response, artist_id: str) -> None:
+    response.set_cookie(SESSION_COOKIE, create_artist_token(artist_id), **_cookie_flags(60 * 60 * 24 * SESSION_DAYS))
+
+
+def set_admin_session(response: Response, admin_id: str) -> None:
+    response.set_cookie(ADMIN_COOKIE, create_admin_token(admin_id), **_cookie_flags(60 * 60 * 24 * ADMIN_SESSION_DAYS))
+
+
+def clear_artist_session(response: Response) -> None:
+    response.delete_cookie(SESSION_COOKIE, path="/")
+
+
+def clear_admin_session(response: Response) -> None:
+    response.delete_cookie(ADMIN_COOKIE, path="/")

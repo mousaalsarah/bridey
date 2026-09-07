@@ -4,14 +4,18 @@ from flask import Flask
 
 from bridey_api.config import load_env
 from bridey_api.db import init_engine
-from bridey_api.routes import health_bp, session_bp
+from bridey_api.routes import auth_bp, health_bp, session_bp
 
 
-def create_app() -> Flask:
+def create_app(database_url: str | None = None) -> Flask:
     load_env()
     app = Flask(__name__)
     app.config["JSON_SORT_KEYS"] = False
-    init_engine()
+    if database_url is None:
+        init_engine()
+    else:
+        init_engine(database_url)
     app.register_blueprint(health_bp)
     app.register_blueprint(session_bp)
+    app.register_blueprint(auth_bp)
     return app
